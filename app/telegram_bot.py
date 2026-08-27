@@ -30,7 +30,7 @@ from collections import deque
 
 from . import db
 from . import telegram_client as tg
-from .config import public_url
+from .config import DB_PATH, TELEGRAM_BOT_TOKEN, public_url
 from .sec_client import SecClient
 
 log = logging.getLogger(__name__)
@@ -42,10 +42,17 @@ OFFSET_TTL = 10 * 365 * 86400
 # updates older than this were typed long ago (backlog from a queue nobody
 # drained, or a redelivery after a crash); answering them reads as spam
 STALE_UPDATE_S = 10 * 60
-# hard ceilings so a broken loop can physically never flood a chat:
+# catastrophic tripwire only: with the confirm protocol done right,
+# floods cannot happen structurally; a human never approaches this
 RATE_WINDOW_S = 60.0
-RATE_MAX_PER_CHAT = 3
-DUP_SUPPRESS_S = 60.0
+RATE_MAX_PER_CHAT = 12
+# periodic status line so a stuck worker is visible in plain logs
+HEARTBEAT_S = 300.0
+
+
+def _token_fp() -> str:
+    return f"{TELEGRAM_BOT_TOKEN[:3]}..{len(TELEGRAM_BOT_TOKEN)}chars" \
+        if TELEGRAM_BOT_TOKEN else "(missing)"
 
 WELCOME = (
     "<b>decoded.report</b>: I read SEC filings so you do not have to. "
@@ -84,17 +91,11 @@ class Bot:
     def __init__(self):
         self.sec = SecClient()
         self._sent_at = {}   # chat_id -> deque of monotonic send timestamps
-        self._last_hash = {} # chat_id -> (payload hash, monotonic ts)
-        self._start_at = {}  # chat_id -> monotonic ts of last welcome sent
         db.init_db()
 
-    def _send(self, chat_id: str, html: str, urgent: bool = False) -> bool:
-        """Send with anti-flood ceilings. A reply is dropped when this chat
-        already got RATE_MAX_PER_CHAT replies inside the window, or the
-        identical payload was sent within DUP_SUPPRESS_S: even a crash loop
-        that keeps redelivering one /start cannot spam beyond these caps.
-        urgent=True (short usage/help echoes) skips only the duplicate check,
-        never the rate cap, so tapping /watch always answers."""
+    def _send(self, chat_id: str, html: str) -> bool:
+        """Send, gated solely by a wide anti-runaway tripwire. Normal
+        interactive use never touches it; only a runaway storm does."""
         now = time.monotonic()
         q = self._sent_at.setdefault(chat_id, deque())
         while q and now - q[0] > RATE_WINDOW_S:
@@ -102,14 +103,8 @@ class Bot:
         if len(q) >= RATE_MAX_PER_CHAT:
             log.warning("rate limit hit, dropping reply to chat=%s", chat_id)
             return False
-        h = hash(html)
-        prev = self._last_hash.get(chat_id)
-        if not urgent and prev and prev[0] == h and now - prev[1] < DUP_SUPPRESS_S:
-            log.debug("duplicate suppressed for chat=%s", chat_id)
-            return False
         if tg.send_html(chat_id, html):
             q.append(now)
-            self._last_hash[chat_id] = (h, now)
             return True
         return False
 
@@ -140,19 +135,11 @@ class Bot:
                 if ((msg.get("chat") or {}).get("type") != "private"):
                     return  # stay silent on chatter from other humans/bots
                 self._send(chat_id,
-                           "I only speak /start, /watch, /unwatch and /list.",
-                           urgent=True)
+                           "I only speak /start, /watch, /unwatch and /list.")
         except Exception as exc:
             log.warning("bot update failed: %s", exc)
 
     def _handle_start(self, chat_id: str, text: str) -> None:
-        # extra START taps within a minute are usually accidents or retries;
-        # acknowledge the first, go quiet on the rest
-        now = time.monotonic()
-        last = self._start_at.get(chat_id)
-        if last and now - last < 60.0:
-            return
-        self._start_at[chat_id] = now
         payload = text[len("/start"):].strip().removeprefix(tg.WATCH_PREFIX).upper()
         wanted = _sanitize_list(payload.replace("%2C", ","))
         self._send(chat_id, WELCOME)
@@ -167,7 +154,6 @@ class Bot:
             self._send(
                 chat_id,
                 "Send tickers like <code>/watch TICKER</code> (up to 8, comma separated).",
-                urgent=True,
             )
             return
         self._register(chat_id, wanted, source="command")
@@ -210,22 +196,37 @@ def _offset_get() -> int:
         return 0
 
 
-def _offset_put(update_id: int) -> None:
-    db.cache_set(OFFSET_KEY, str(update_id + 1), OFFSET_TTL)
+def _offset_put(next_wire_offset: int) -> None:
+    """Store the exact value the next getUpdates call must send. The value
+    must ALREADY be uid+1 past everything considered handled: Telegram
+    confirms ids strictly below this number, and anything left below it is
+    redelivered forever."""
+    db.cache_set(OFFSET_KEY, str(int(next_wire_offset)), OFFSET_TTL)
 
 
 def drain(bot: Bot, once: bool = False) -> int:
     """Long-poll loop. Returns processed count for --once mode."""
     offset = _offset_get()
     high_water = offset - 1          # last update_id this process handled
+    started = time.monotonic()
+    last_beat = started if once else 0.0
     anomaly_logged = False
     processed = 0
     while True:
+        now_mono = time.monotonic()
+        if now_mono - last_beat >= HEARTBEAT_S:
+            log.info("heartbeat: up %.0fs, request_offset=%d, last_handled=%d, "
+                     "handled_total=%d", now_mono - started, offset, high_water,
+                     processed)
+            last_beat = now_mono
         updates = tg.get_updates(offset=offset)
         if updates:
-            log.debug("getUpdates batch n=%d ids=%s..%s from offset=%d",
-                      len(updates), updates[0].get("update_id"),
-                      updates[-1].get("update_id"), offset)
+            first, last = updates[0].get("update_id"), updates[-1].get("update_id")
+            if len(updates) == 1:
+                log.debug("getUpdates offset=%d -> 1 update id=%s", offset, first)
+            else:
+                log.debug("getUpdates offset=%d -> %d updates ids=%s..%s",
+                          offset, len(updates), first, last)
         if not updates:
             if once:
                 return processed
@@ -233,26 +234,28 @@ def drain(bot: Bot, once: bool = False) -> int:
             continue
         for u in updates:
             uid = u.get("update_id", 0)
-            # Persist the cursor BEFORE answering anything. If it cannot be
-            # saved, this batch is aborted with zero replies: sending anyway
-            # would leave the update unconfirmed, redelivered next poll, and
-            # answered again = an infinite welcome loop. Worst case of
-            # persisting first is one dropped reply after a mid-handler crash.
+            # THE protocol invariant: confirm STRICTLY PAST this id before
+            # answering it. Requesting with a lower number used to leave each
+            # batch's tail unconfirmed: redelivered forever at full poll speed
+            # (= the endless welcome storm), while replies got rate-suppressed.
+            next_wire = max(offset, uid + 1)
             try:
-                _offset_put(max(offset, uid))
+                _offset_put(next_wire)
             except Exception as exc:
-                log.error("cannot persist tg offset; dropping batch un-answered: %s", exc)
+                # Without a durable cursor we must not answer anything from
+                # this batch: all of it would come back unconfirmed later.
+                log.error("cannot persist tg offset=%d; aborting batch with "
+                          "zero replies: %s", next_wire, exc)
                 return processed
-            offset = max(offset, uid)
+            offset = next_wire
             if uid <= high_water:
-                # Something outside our model delivered an already-handled id
-                # again (second consumer on the token, replayed state, ...).
-                # Confirm it and move on; never answer it twice.
+                # Already handled (foreign consumer, rebased cursor, replayed
+                # state). Confirm-only: never answers twice by design.
                 if not anomaly_logged:
-                    log.warning(
-                        "update_id=%s re-delivered (high_water=%s): second "
-                        "consumer or rebased cursor? confirmed w/o answer",
-                        uid, high_water)
+                    log.warning("update_id=%s re-delivered although "
+                                "last_handled=%d; confirmed without answering "
+                                "(second consumer on token? stale copy?)",
+                                uid, high_water)
                     anomaly_logged = True
                 continue
             high_water = uid
@@ -302,7 +305,8 @@ def main():
         n = drain(bot, once=True)
         print(json.dumps({"processed": n}))
         return
-    log.info("telegram bot polling started")
+    log.info("telegram bot polling started: token=%s db=%s offset=%d",
+             _token_fp(), DB_PATH, _offset_get())
     delay = 5.0
     while True:
         try:
