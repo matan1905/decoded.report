@@ -14,6 +14,7 @@ symbol. The bot only ever learns the chat id and what it watches.
 Run modes:
     python -m app.telegram_bot --poll            # resident long-poll (local dev)
     python -m app.telegram_bot --once            # drain pending updates once
+    python -m app.telegram_bot --drop-pending    # flush queued updates, exit
     python -m app.telegram_bot --set-webhook URL # production wiring helper
 
 The webhook route lives in the FastAPI app at POST /tg/webhook/{secret};
@@ -37,6 +38,9 @@ MAX_WATCH = 8
 TICKER_RE = re.compile(r"^[A-Z0-9.\-]{1,10}$")
 OFFSET_KEY = "tg:update_offset"
 OFFSET_TTL = 10 * 365 * 86400
+# updates older than this were typed long ago (backlog from a queue nobody
+# drained, or a redelivery after a crash); answering them reads as spam
+STALE_UPDATE_S = 10 * 60
 
 WELCOME = (
     "<b>decoded.report</b>: I read SEC filings so you do not have to. "
@@ -104,12 +108,8 @@ class Bot:
         payload = text[len("/start"):].strip().removeprefix(tg.WATCH_PREFIX).upper()
         wanted = _sanitize_list(payload.replace("%2C", ","))
         tg.send_html(chat_id, WELCOME)
-        if not wanted:
-            return
-        added = self._register(chat_id, wanted, source="deeplink")
-        if added:
-            tg.send_html(chat_id, _fmt_watchlist(db.subs_for_chat(chat_id)))
-        else:
+        if wanted:
+            self._register(chat_id, wanted, source="deeplink")
             tg.send_html(chat_id, _fmt_watchlist(db.subs_for_chat(chat_id)))
 
     def _handle_watch(self, chat_id: str, text: str) -> None:
@@ -177,9 +177,18 @@ def drain(bot: Bot, once: bool = False) -> int:
             time.sleep(1.0)
             continue
         for u in updates:
-            bot.handle_update(u)
-            offset = max(offset, u.get("update_id", 0))
+            # confirm the update BEFORE answering it: once our offset passes
+            # its id, Telegram never redelivers it, so a crash mid-handler
+            # can at worst drop one reply and never replay a whole batch
+            uid = u.get("update_id", 0)
+            offset = max(offset, uid)
             _offset_put(offset)
+            msg_ts = (u.get("message") or {}).get("date") or 0
+            age = time.time() - msg_ts
+            if age > STALE_UPDATE_S:
+                log.info("skipped stale update %s (%ds old): backlog replay", uid, int(age))
+                continue
+            bot.handle_update(u)
             processed += 1
         if once:
             return processed
@@ -190,6 +199,8 @@ def main():
     ap = argparse.ArgumentParser(description="decoded.report Telegram bot")
     ap.add_argument("--poll", action="store_true", help="resident long-poll loop")
     ap.add_argument("--once", action="store_true", help="drain pending updates once")
+    ap.add_argument("--drop-pending", action="store_true",
+                    help="flush every queued update without replying, then exit")
     ap.add_argument("--set-webhook", metavar="URL",
                     help="register URL as the production webhook and exit")
     args = ap.parse_args()
@@ -199,6 +210,10 @@ def main():
     if args.set_webhook:
         ok = tg.set_webhook(args.set_webhook)
         print("webhook set:" , ok)
+        raise SystemExit(0 if ok else 1)
+    if args.drop_pending:
+        ok = tg.drop_pending_updates()
+        print(json.dumps({"dropped_pending": ok}))
         raise SystemExit(0 if ok else 1)
     if not (args.poll or args.once):
         print("nothing to do: pass --poll or --once (or --set-webhook URL)")

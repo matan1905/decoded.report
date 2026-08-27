@@ -79,8 +79,15 @@ def set_webhook(url: str):
     return bool(_call("setWebhook", payload))
 
 
-def delete_webhook():
-    return bool(_call("deleteWebhook"))
+def delete_webhook(drop_pending: bool = False):
+    payload = {"drop_pending_updates": True} if drop_pending else {}
+    return bool(_call("deleteWebhook", payload))
+
+
+def drop_pending_updates() -> bool:
+    """Flush everything queued for the bot. Works in polling mode too
+    (no webhook to delete; Telegram just discards pending updates)."""
+    return delete_webhook(drop_pending=True)
 
 
 def send_html(chat_id: str, html: str) -> bool:
