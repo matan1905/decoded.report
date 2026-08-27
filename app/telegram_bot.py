@@ -45,7 +45,7 @@ STALE_UPDATE_S = 10 * 60
 # hard ceilings so a broken loop can physically never flood a chat:
 RATE_WINDOW_S = 60.0
 RATE_MAX_PER_CHAT = 3
-DUP_SUPPRESS_S = 120.0
+DUP_SUPPRESS_S = 60.0
 
 WELCOME = (
     "<b>decoded.report</b>: I read SEC filings so you do not have to. "
@@ -85,24 +85,27 @@ class Bot:
         self.sec = SecClient()
         self._sent_at = {}   # chat_id -> deque of monotonic send timestamps
         self._last_hash = {} # chat_id -> (payload hash, monotonic ts)
+        self._start_at = {}  # chat_id -> monotonic ts of last welcome sent
         db.init_db()
 
-    def _send(self, chat_id: str, html: str) -> bool:
+    def _send(self, chat_id: str, html: str, urgent: bool = False) -> bool:
         """Send with anti-flood ceilings. A reply is dropped when this chat
         already got RATE_MAX_PER_CHAT replies inside the window, or the
         identical payload was sent within DUP_SUPPRESS_S: even a crash loop
-        that keeps redelivering one /start cannot spam beyond these caps."""
+        that keeps redelivering one /start cannot spam beyond these caps.
+        urgent=True (short usage/help echoes) skips only the duplicate check,
+        never the rate cap, so tapping /watch always answers."""
         now = time.monotonic()
         q = self._sent_at.setdefault(chat_id, deque())
         while q and now - q[0] > RATE_WINDOW_S:
             q.popleft()
-        h = hash(html)
-        prev = self._last_hash.get(chat_id)
-        if prev and prev[0] == h and now - prev[1] < DUP_SUPPRESS_S:
-            log.info("duplicate suppressed for chat=%s", chat_id)
-            return False
         if len(q) >= RATE_MAX_PER_CHAT:
             log.warning("rate limit hit, dropping reply to chat=%s", chat_id)
+            return False
+        h = hash(html)
+        prev = self._last_hash.get(chat_id)
+        if not urgent and prev and prev[0] == h and now - prev[1] < DUP_SUPPRESS_S:
+            log.debug("duplicate suppressed for chat=%s", chat_id)
             return False
         if tg.send_html(chat_id, html):
             q.append(now)
@@ -120,6 +123,11 @@ class Bot:
             text = (msg.get("text") or "").strip()
             if not chat_id or not text:
                 return
+            if ((msg.get("from") or {}).get("is_bot")):
+                # never react to another bot's output: two reflexive bots in
+                # one chat otherwise feed each other in an echo cascade
+                log.debug("ignored bot-sourced message in chat=%s", chat_id)
+                return
             if text.startswith("/start"):
                 self._handle_start(chat_id, text)
             elif text.startswith("/watch"):
@@ -129,12 +137,22 @@ class Bot:
             elif text.startswith("/list"):
                 self._send(chat_id, _fmt_watchlist(db.subs_for_chat(chat_id)))
             else:
+                if ((msg.get("chat") or {}).get("type") != "private"):
+                    return  # stay silent on chatter from other humans/bots
                 self._send(chat_id,
-                           "I only speak /start, /watch, /unwatch and /list.")
+                           "I only speak /start, /watch, /unwatch and /list.",
+                           urgent=True)
         except Exception as exc:
             log.warning("bot update failed: %s", exc)
 
     def _handle_start(self, chat_id: str, text: str) -> None:
+        # extra START taps within a minute are usually accidents or retries;
+        # acknowledge the first, go quiet on the rest
+        now = time.monotonic()
+        last = self._start_at.get(chat_id)
+        if last and now - last < 60.0:
+            return
+        self._start_at[chat_id] = now
         payload = text[len("/start"):].strip().removeprefix(tg.WATCH_PREFIX).upper()
         wanted = _sanitize_list(payload.replace("%2C", ","))
         self._send(chat_id, WELCOME)
@@ -143,12 +161,13 @@ class Bot:
             self._send(chat_id, _fmt_watchlist(db.subs_for_chat(chat_id)))
 
     def _handle_watch(self, chat_id: str, text: str) -> None:
-        raw = text.split(" ", 1)[1] if " " in text else ""
+        raw = text.split(" ", 1)[1].strip() if " " in text else ""
         wanted = _sanitize_list(raw)
         if not wanted:
             self._send(
                 chat_id,
                 "Send tickers like <code>/watch TICKER</code> (up to 8, comma separated).",
+                urgent=True,
             )
             return
         self._register(chat_id, wanted, source="command")
@@ -198,9 +217,15 @@ def _offset_put(update_id: int) -> None:
 def drain(bot: Bot, once: bool = False) -> int:
     """Long-poll loop. Returns processed count for --once mode."""
     offset = _offset_get()
+    high_water = offset - 1          # last update_id this process handled
+    anomaly_logged = False
     processed = 0
     while True:
         updates = tg.get_updates(offset=offset)
+        if updates:
+            log.debug("getUpdates batch n=%d ids=%s..%s from offset=%d",
+                      len(updates), updates[0].get("update_id"),
+                      updates[-1].get("update_id"), offset)
         if not updates:
             if once:
                 return processed
@@ -217,14 +242,25 @@ def drain(bot: Bot, once: bool = False) -> int:
                 _offset_put(max(offset, uid))
             except Exception as exc:
                 log.error("cannot persist tg offset; dropping batch un-answered: %s", exc)
-                if once:
-                    return processed
                 return processed
             offset = max(offset, uid)
+            if uid <= high_water:
+                # Something outside our model delivered an already-handled id
+                # again (second consumer on the token, replayed state, ...).
+                # Confirm it and move on; never answer it twice.
+                if not anomaly_logged:
+                    log.warning(
+                        "update_id=%s re-delivered (high_water=%s): second "
+                        "consumer or rebased cursor? confirmed w/o answer",
+                        uid, high_water)
+                    anomaly_logged = True
+                continue
+            high_water = uid
             msg_ts = (u.get("message") or {}).get("date") or 0
             age = time.time() - msg_ts
             if age > STALE_UPDATE_S:
-                log.info("skipped stale update %s (%ds old): backlog replay", uid, int(age))
+                log.info("skipped stale update %s (%ds old): backlog replay",
+                         uid, int(age))
                 continue
             bot.handle_update(u)
             processed += 1
@@ -234,6 +270,10 @@ def drain(bot: Bot, once: bool = False) -> int:
 
 def main():
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    # httpx logs every request URL at INFO, and our Telegram URLs embed the
+    # bot token: never let those into shared/collected log streams.
+    for noisy in ("httpx", "httpcore"):
+        logging.getLogger(noisy).setLevel(logging.WARNING)
     ap = argparse.ArgumentParser(description="decoded.report Telegram bot")
     ap.add_argument("--poll", action="store_true", help="resident long-poll loop")
     ap.add_argument("--once", action="store_true", help="drain pending updates once")
@@ -256,6 +296,7 @@ def main():
     if not (args.poll or args.once):
         print("nothing to do: pass --poll or --once (or --set-webhook URL)")
         raise SystemExit(1)
+    tg.set_my_commands()
     bot = Bot()
     if args.once:
         n = drain(bot, once=True)

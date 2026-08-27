@@ -90,6 +90,16 @@ def drop_pending_updates() -> bool:
     return delete_webhook(drop_pending=True)
 
 
+def set_my_commands() -> bool:
+    """Publish the bot command menu shown when users type "/"."""
+    return bool(_call("setMyCommands", {"commands": [
+        {"command": "start", "description": "Subscribe and see how this works"},
+        {"command": "watch", "description": "Watch tickers: /watch AAPL,NVDA"},
+        {"command": "list", "description": "What you currently watch"},
+        {"command": "unwatch", "description": "Stop watching: /unwatch TICKERS|ALL"},
+    ]}))
+
+
 def send_html(chat_id: str, html: str) -> bool:
     """Send one HTML message to one chat. Returns False (and logs
     WOULD-NOTIFY) when no token is configured."""
