@@ -9,9 +9,17 @@ DATA_DIR = PRODUCT_DIR / "data"
 
 load_dotenv(PRODUCT_DIR / ".env")
 
-APP_NAME = os.getenv("APP_NAME", "decoded.report")
-APP_VERSION = os.getenv("APP_VERSION", "0.1.0")
-SEC_USER_AGENT = os.getenv("SEC_USER_AGENT", "decoded.report research contact@decoded.report")
+
+def _env(name: str, default: str = "") -> str:
+    """Read an env var, treating an explicitly empty value as unset so that
+    compose passthrough entries (which inject "" for undefined names) can
+    never blank out code defaults."""
+    return (os.getenv(name) or "").strip() or default
+
+
+APP_NAME = _env("APP_NAME", "decoded.report")
+APP_VERSION = _env("APP_VERSION", "0.1.0")
+SEC_USER_AGENT = _env("SEC_USER_AGENT", "decoded.report research contact@decoded.report")
 
 TWELVEDATA_API_KEY = os.getenv("TWELVEDATA_API_KEY", "").strip()
 FINNHUB_API_KEY = os.getenv("FINNHUB_API_KEY", "").strip()

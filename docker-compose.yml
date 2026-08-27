@@ -4,8 +4,6 @@ services:
     restart: unless-stopped
     environment:
       - SEC_USER_AGENT
-      - APP_NAME
-      - APP_VERSION
       - BASE_URL
       - MASSIVE_API_KEY
       - TWELVEDATA_API_KEY
@@ -31,8 +29,6 @@ services:
     restart: unless-stopped
     environment:
       - SEC_USER_AGENT
-      - APP_NAME
-      - APP_VERSION
       - BASE_URL
       - MASSIVE_API_KEY
       - TELEGRAM_BOT_TOKEN
@@ -50,8 +46,6 @@ services:
     restart: unless-stopped
     environment:
       - SEC_USER_AGENT
-      - APP_NAME
-      - APP_VERSION
       - BASE_URL
       - MASSIVE_API_KEY
       - TELEGRAM_BOT_TOKEN
