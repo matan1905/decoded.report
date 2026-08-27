@@ -26,6 +26,7 @@ import json
 import logging
 import re
 import time
+from collections import deque
 
 from . import db
 from . import telegram_client as tg
@@ -41,6 +42,10 @@ OFFSET_TTL = 10 * 365 * 86400
 # updates older than this were typed long ago (backlog from a queue nobody
 # drained, or a redelivery after a crash); answering them reads as spam
 STALE_UPDATE_S = 10 * 60
+# hard ceilings so a broken loop can physically never flood a chat:
+RATE_WINDOW_S = 60.0
+RATE_MAX_PER_CHAT = 3
+DUP_SUPPRESS_S = 120.0
 
 WELCOME = (
     "<b>decoded.report</b>: I read SEC filings so you do not have to. "
@@ -78,7 +83,32 @@ def _fmt_watchlist(tickers: list) -> str:
 class Bot:
     def __init__(self):
         self.sec = SecClient()
+        self._sent_at = {}   # chat_id -> deque of monotonic send timestamps
+        self._last_hash = {} # chat_id -> (payload hash, monotonic ts)
         db.init_db()
+
+    def _send(self, chat_id: str, html: str) -> bool:
+        """Send with anti-flood ceilings. A reply is dropped when this chat
+        already got RATE_MAX_PER_CHAT replies inside the window, or the
+        identical payload was sent within DUP_SUPPRESS_S: even a crash loop
+        that keeps redelivering one /start cannot spam beyond these caps."""
+        now = time.monotonic()
+        q = self._sent_at.setdefault(chat_id, deque())
+        while q and now - q[0] > RATE_WINDOW_S:
+            q.popleft()
+        h = hash(html)
+        prev = self._last_hash.get(chat_id)
+        if prev and prev[0] == h and now - prev[1] < DUP_SUPPRESS_S:
+            log.info("duplicate suppressed for chat=%s", chat_id)
+            return False
+        if len(q) >= RATE_MAX_PER_CHAT:
+            log.warning("rate limit hit, dropping reply to chat=%s", chat_id)
+            return False
+        if tg.send_html(chat_id, html):
+            q.append(now)
+            self._last_hash[chat_id] = (h, now)
+            return True
+        return False
 
     # ---- command handlers ------------------------------------------------
 
@@ -97,32 +127,32 @@ class Bot:
             elif text.startswith("/unwatch"):
                 self._handle_unwatch(chat_id, text)
             elif text.startswith("/list"):
-                tg.send_html(chat_id, _fmt_watchlist(db.subs_for_chat(chat_id)))
+                self._send(chat_id, _fmt_watchlist(db.subs_for_chat(chat_id)))
             else:
-                tg.send_html(chat_id,
-                             "I only speak /start, /watch, /unwatch and /list.")
+                self._send(chat_id,
+                           "I only speak /start, /watch, /unwatch and /list.")
         except Exception as exc:
             log.warning("bot update failed: %s", exc)
 
     def _handle_start(self, chat_id: str, text: str) -> None:
         payload = text[len("/start"):].strip().removeprefix(tg.WATCH_PREFIX).upper()
         wanted = _sanitize_list(payload.replace("%2C", ","))
-        tg.send_html(chat_id, WELCOME)
+        self._send(chat_id, WELCOME)
         if wanted:
             self._register(chat_id, wanted, source="deeplink")
-            tg.send_html(chat_id, _fmt_watchlist(db.subs_for_chat(chat_id)))
+            self._send(chat_id, _fmt_watchlist(db.subs_for_chat(chat_id)))
 
     def _handle_watch(self, chat_id: str, text: str) -> None:
         raw = text.split(" ", 1)[1] if " " in text else ""
         wanted = _sanitize_list(raw)
         if not wanted:
-            tg.send_html(
+            self._send(
                 chat_id,
                 "Send tickers like <code>/watch TICKER</code> (up to 8, comma separated).",
             )
             return
         self._register(chat_id, wanted, source="command")
-        tg.send_html(chat_id, _fmt_watchlist(db.subs_for_chat(chat_id)))
+        self._send(chat_id, _fmt_watchlist(db.subs_for_chat(chat_id)))
 
     def _handle_unwatch(self, chat_id: str, text: str) -> None:
         raw = text.split(" ", 1)[1].strip() if " " in text else ""
@@ -135,7 +165,7 @@ class Bot:
             n = db.sub_remove(chat_id, wanted) if wanted else 0
             reply = f"Stopped watching {n} ticker{'s' if n != 1 else ''}." \
                 if n else "None of those were on your list."
-        tg.send_html(chat_id, reply)
+        self._send(chat_id, reply)
 
     def _register(self, chat_id: str, wanted: list, source: str) -> list:
         resolved, unknown = [], []
@@ -145,7 +175,7 @@ class Bot:
         for t in added:
             db.log_event("lead", ticker=t, utm="telegram", captured=1)
         if unknown:
-            tg.send_html(
+            self._send(
                 chat_id,
                 "Not in the SEC system under " + ", ".join(tg.esc(u) for u in unknown)
                 + ": delisted, private, or a typo. Nothing watched for those.",
@@ -177,12 +207,20 @@ def drain(bot: Bot, once: bool = False) -> int:
             time.sleep(1.0)
             continue
         for u in updates:
-            # confirm the update BEFORE answering it: once our offset passes
-            # its id, Telegram never redelivers it, so a crash mid-handler
-            # can at worst drop one reply and never replay a whole batch
             uid = u.get("update_id", 0)
+            # Persist the cursor BEFORE answering anything. If it cannot be
+            # saved, this batch is aborted with zero replies: sending anyway
+            # would leave the update unconfirmed, redelivered next poll, and
+            # answered again = an infinite welcome loop. Worst case of
+            # persisting first is one dropped reply after a mid-handler crash.
+            try:
+                _offset_put(max(offset, uid))
+            except Exception as exc:
+                log.error("cannot persist tg offset; dropping batch un-answered: %s", exc)
+                if once:
+                    return processed
+                return processed
             offset = max(offset, uid)
-            _offset_put(offset)
             msg_ts = (u.get("message") or {}).get("date") or 0
             age = time.time() - msg_ts
             if age > STALE_UPDATE_S:
@@ -224,12 +262,15 @@ def main():
         print(json.dumps({"processed": n}))
         return
     log.info("telegram bot polling started")
+    delay = 5.0
     while True:
         try:
             drain(bot)
+            delay = 5.0
         except Exception as exc:
-            log.error("poll crashed: %s ; restarting in 5s", exc)
-            time.sleep(5.0)
+            log.error("poll crashed: %s ; restarting in %.0fs", exc, delay)
+            time.sleep(delay)
+            delay = min(delay * 2.0, 60.0)
 
 
 if __name__ == "__main__":

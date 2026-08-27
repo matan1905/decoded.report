@@ -8,8 +8,8 @@ from .config import FINNHUB_API_KEY, TWELVEDATA_API_KEY
 
 log = logging.getLogger(__name__)
 
-TWELVE_QUOTE = "https://api.twelvedata.com/quote"
-TWELVE_TS = "https://api.twelvedata.com/time_series"
+TWELVEDATA_QUOTE = "https://api.twelvedata.com/quote"
+TWELVEDATA_TS = "https://api.twelvedata.com/time_series"
 FINNHUB_QUOTE = "https://finnhub.io/api/v1/quote"
 FINNHUB_PROFILE = "https://finnhub.io/api/v1/stock/profile2"
 
@@ -46,7 +46,7 @@ def twelvedata_quote(client: httpx.Client, ticker: str) -> dict:
 
 def _twelve_52w(client, ticker, quote_resp) -> tuple:
     r = client.get(
-        TWELVE_TS,
+        TWELVEDATA_TS,
         params={"symbol": ticker, "interval": "1day", "outputsize": "260", "apikey": TWELVEDATA_API_KEY},
     )
     r.raise_for_status()
@@ -83,8 +83,8 @@ def finnhub_quote(client, ticker: str) -> dict:
         "open": _num(d.get("o")),
         "high": _num(d.get("h")),
         "low": _num(d.get("l")),
-        "52w_high": _num(d.get("52w high") or p.get("52wHigh")),
-        "52w_low": _num(d.get("52w low") or p.get("52wLow")),
+        "52w_high": _num(d.get("52w high") or prof.get("52wHigh")),
+        "52w_low": _num(d.get("52w low") or prof.get("52wLow")),
         "name": prof.get("name"),
         "exchange": prof.get("exchange"),
         "currency": "USD",
