@@ -1,0 +1,8 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+data/
+# internal build log (contains example-ticker references)
+BUILD_REPORT.md

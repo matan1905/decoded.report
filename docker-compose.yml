@@ -1,0 +1,63 @@
+services:
+  web:
+    build: .
+    restart: unless-stopped
+    environment:
+      - SEC_USER_AGENT
+      - APP_NAME
+      - APP_VERSION
+      - BASE_URL
+      - MASSIVE_API_KEY
+      - TWELVEDATA_API_KEY
+      - FINNHUB_API_KEY
+      - TELEGRAM_BOT_TOKEN
+      - TELEGRAM_BOT_USERNAME
+      - TG_WEBHOOK_SECRET
+      - ADMIN_USERNAME
+      - ADMIN_PASSWORD
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  telegram-bot:
+    build: .
+    restart: unless-stopped
+    environment:
+      - SEC_USER_AGENT
+      - APP_NAME
+      - APP_VERSION
+      - BASE_URL
+      - MASSIVE_API_KEY
+      - TELEGRAM_BOT_TOKEN
+      - TELEGRAM_BOT_USERNAME
+      - TG_WEBHOOK_SECRET
+    command: ["python", "-m", "app.telegram_bot", "--poll"]
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      web:
+        condition: service_healthy
+
+  alerts:
+    build: .
+    restart: unless-stopped
+    environment:
+      - SEC_USER_AGENT
+      - APP_NAME
+      - APP_VERSION
+      - BASE_URL
+      - MASSIVE_API_KEY
+      - TELEGRAM_BOT_TOKEN
+      - TELEGRAM_BOT_USERNAME
+    command: ["python", "-m", "app.alerts", "--loop", "3600"]
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      web:
+        condition: service_healthy

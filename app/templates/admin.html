@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Subscriptions | {{ app_name }} admin{% endblock %}
+{% block content %}
+
+<section class="sec">
+  <div class="sechead"><span class="no">§</span><h2>Owner Console · Telegram Subscriptions</h2><span class="rule"></span>
+    <span class="aux">{{ count }} CHATS · {{ subs_total }} WATCH ROWS</span></div>
+  {% if subs %}
+  <div class="filing" style="font-size:11px;color:var(--dim);border-bottom:1px solid var(--line2);">
+    <span class="form" style="min-width:110px;">TICKER</span>
+    <span class="dt" style="min-width:150px;">CHAT ID</span>
+    <span class="dt">JOINED</span>
+  </div>
+  {% for l in subs %}
+  <div class="filing">
+    <span class="form" style="min-width:110px;"><a href="/{{ l.ticker }}">{{ l.ticker }}</a></span>
+    <span class="dt" style="min-width:150px;">{{ l.chat_id }}</span>
+    <span class="dt">{{ l.created_at | timestamp_ago }}</span>
+    <span style="flex:1;" class="muted">via {{ l.utm_source or "-" }}</span>
+  </div>
+  {% endfor %}
+  {% else %}<p class="note">No subscriptions yet. Wire the bot: TELEGRAM_BOT_TOKEN + TELEGRAM_BOT_USERNAME in .env, then `python -m app.telegram_bot --poll`.</p>{% endif %}
+    <section class="sec">
+    <div class="sechead"><span class="no">Σ</span><h2>Demand · Last 7 Days</h2><span class="rule"></span></div>
+    <div class="stats">
+      <div class="stat"><div class="n">{{ stats.page_view }}</div><div class="t">REPORT VIEWS</div></div>
+      <div class="stat"><div class="n">{{ stats.searches }}</div><div class="t">SEARCHES</div></div>
+      <div class="stat"><div class="n">{{ stats.watchlist }}</div><div class="t">WATCHLIST RUNS</div></div>
+      <div class="stat"><div class="n">{{ count }}</div><div class="t">TELEGRAM SUBSCRIBERS</div></div>
+    </div>
+    <div class="examples" style="margin-top:14px;">HOT TICKERS (30D):
+      {% for r in hot %}<a class="pill" href="/{{ r.ticker }}">{{ r.ticker }} ×{{ r.c }}</a>{% endfor %}
+    </div>
+  </section>
+
+  <section class="sec">
+    <div class="sechead"><span class="no">!</span><h2>Alert Engine</h2><span class="rule"></span>
+      <span class="aux">{{ watched_count }} WATCHED TICKERS · {{ notify_sent_7d }} SENT 7D · BOT {{ ("@" + tg_bot + " READY") if tg_ready else "WOULD-NOTIFY (NO TOKEN)" }}</span>
+    </div>
+    <p class="sub">Two processes keep the loop alive: <code>python -m app.telegram_bot --poll</code> handles subscriptions, <code>python -m app.alerts --loop 3600</code> (or a cron line) pushes cited changes to every watching chat. Each pass re-scans watched tickers and notifies only verified changes.</p>
+    {% if alert_states %}
+    <div class="filing" style="font-size:11px;color:var(--dim);border-bottom:1px solid var(--line2);">
+      <span class="form" style="min-width:80px;">TICKER</span>
+      <span class="dt" style="min-width:150px;">LAST CHECKED</span>
+      <span class="dt" style="min-width:130px;">LAST ALERTED</span>
+      <span style="flex:1;">STATE / NOTE</span>
+    </div>
+    {% for s in alert_states %}
+    <div class="filing">
+      <span class="form" style="min-width:80px;"><a href="/{{ s.ticker }}">{{ s.ticker }}</a></span>
+      <span class="dt" style="min-width:150px;">{{ s.checked_at | timestamp_ago }}</span>
+      <span class="dt" style="min-width:130px;">{% if s.alerted_at %}{{ s.alerted_at | timestamp_ago }}{% else %}never{% endif %}</span>
+      <span style="flex:1;" class="muted">{{ s.sig[:12] if s.sig }} · {{ s.note or "" }}</span>
+    </div>
+    {% endfor %}
+    {% else %}
+    <p class="note">No watch state yet. The first pass seeds state per ticker; alerts start on the next change.</p>
+    {% endif %}
+    {% if notify_logs %}
+    <p class="cite" style="margin-top:14px;">RECENT NOTIFY LOG:</p>
+    {% for a in notify_logs %}
+    <div class="filing">
+      <span class="form {{ 'okv' if a.sent else '' }}" style="min-width:120px;">{{ "SENT" if a.sent else "WOULD-NOTIFY" }}</span>
+      <span class="dt" style="min-width:80px;"><a href="/{{ a.ticker }}">{{ a.ticker or "?" }}</a></span>
+      <span class="dt">{{ a.created_at | timestamp_ago }}</span>
+      <span style="flex:1;" class="muted">chat {{ a.chat_id }}</span>
+    </div>
+    {% endfor %}
+    {% endif %}
+  </section>
+
+  <section class="sec">
+    <div class="sechead"><span class="no">!</span><h2>Recent Events · 30 Days</h2><span class="rule"></span>
+      <span class="aux">PAGE VIEWS · SEARCHES · BAGS</span></div>
+    {% if events %}
+    <div class="filing" style="font-size:11px;color:var(--dim);border-bottom:1px solid var(--line2);">
+      <span class="form" style="min-width:130px;">EVENT</span>
+      <span class="dt" style="min-width:150px;">TICKER / PAYLOAD</span>
+      <span class="dt">WHEN</span>
+      <span style="flex:1;">SOURCE</span>
+    </div>
+    {% for e in events %}
+    <div class="filing">
+      <span class="form" style="min-width:130px;">{{ e.kind }}</span>
+      <span class="dt" style="min-width:150px;word-break:break-all;">{{ e.ticker or "-" }}</span>
+      <span class="dt">{{ e.created_at | timestamp_ago }}</span>
+      <span style="flex:1;" class="muted">{{ e.utm_source or "direct" }}{% if e.captured %} · captured{% endif %}</span>
+    </div>
+    {% endfor %}
+    {% else %}<p class="note">No events yet. Visit a report, run a search, or open a Bag Check.</p>{% endif %}
+  </section>
+
+  <p class="cite">SOURCE: SQLITE EVENTS + SEARCHES + TG_SUBS + ALERT STATE · V{{ app_version }}</p>
+</section>
+{% endblock %}

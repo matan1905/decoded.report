@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}{{ page }} | {{ app_name }}{% endblock %}
+{% block content %}
+<section class="sec" style="max-width:760px;">
+  <div class="sechead"><span class="no">§</span><h2>{{ page }}</h2><span class="rule"></span></div>
+  {% if page == "Privacy Policy" %}
+  <p class="sub">Last updated: August 27, 2026</p>
+  <h3>What we collect</h3>
+  <p>decoded.report records ticker searches, report views, share and Bag Check events, referral parameters, and Telegram watch subscriptions. Telegram subscriptions use the Telegram chat identifier supplied by Telegram and the tickers you choose to watch. We do not ask for or store passwords or email addresses for the notification service.</p>
+  <h3>Why we collect it</h3>
+  <p>We use this information to operate filing alerts, understand which tickers are requested, improve the service, and measure referral traffic. We do not sell personal information.</p>
+  <h3>Retention and deletion</h3>
+  <p>Operational records are kept while needed for the service. Send a request to <a href="mailto:contact@decoded.report">contact@decoded.report</a> to ask about deletion or access. Telegram controls your account and can stop the bot from sending messages when you use <code>/unwatch ALL</code>.</p>
+  <h3>Sources and third parties</h3>
+  <p>Reports retrieve public records from the SEC and other public data services. Telegram processes bot messages and subscriptions. Those providers may process requests under their own policies.</p>
+  {% else %}
+  <p class="sub">Last updated: August 27, 2026</p>
+  <h3>Screening only</h3>
+  <p>decoded.report is an informational screening tool. It is not investment, legal, tax, or financial advice, and nothing on the site is a recommendation to buy, sell, or hold a security. Verify information against the cited source filings and consult a qualified professional.</p>
+  <h3>Data limitations</h3>
+  <p>Information comes from public filings and other public sources and may be delayed, incomplete, incorrectly reported, or unavailable. Scores and verdicts are deterministic outputs of our screening rules, not predictions of future performance.</p>
+  <h3>Acceptable use</h3>
+  <p>Use the service lawfully and do not interfere with its operation, evade rate limits, or treat automated outputs as a substitute for your own research.</p>
+  <h3>Contact</h3>
+  <p>Questions, corrections, and abuse reports: <a href="mailto:contact@decoded.report">contact@decoded.report</a>.</p>
+  {% endif %}
+</section>
+{% endblock %}

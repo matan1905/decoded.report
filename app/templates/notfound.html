@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Not found: {{ ticker }} | {{ app_name }}{% endblock %}
+{% block content %}
+
+<div class="hero">
+  <div>
+    <div class="kicker">CASE FILE · NO MATCH</div>
+    <h1>{{ ticker }}</h1>
+    <div class="co">No current filings with the SEC under this symbol.</div>
+    <p class="sub" style="margin-top:10px;">
+      It may be private, delisted, renamed, a shell that never filed, or a typo.
+      The SEC's database is the authority: if it is not there, there is nothing public to decode.
+    </p>
+  </div>
+  <div class="stamp warn">
+    <div class="score" style="font-size:22px;padding:10px 0;">N/A</div>
+    <div class="band">NO FILE</div>
+    <div class="lbl">COVERAGE CHECK</div>
+  </div>
+</div>
+
+<section class="sec">
+  <div class="sechead"><span class="no">01</span><h2>Get Notified When Coverage Starts</h2><span class="rule"></span></div>
+  <p class="sub">If {{ ticker }} files with the SEC later, one Telegram message tells you. One tap, no account.</p>
+  {% if tg_watch_url %}
+  <a class="btn" href="{{ tg_watch_url }}">NOTIFY ME ON TELEGRAM →</a>
+  {% else %}
+  <p class="cite">TELEGRAM ALERTS: BOT LINK PENDING CONFIG (TELEGRAM_BOT_TOKEN + TELEGRAM_BOT_USERNAME IN .ENV).</p>
+  {% endif %}
+</section>
+
+<section class="sec">
+  <div class="sechead"><span class="no">02</span><h2>Decode Another Ticker</h2><span class="rule"></span></div>
+  <form class="inline-form searchbar" action="/search" method="post">
+    <input type="text" name="ticker" placeholder="TICKER" autofocus autocomplete="off" autocapitalize="characters">
+    <button class="btn" type="submit">DECODE →</button>
+  </form>
+  {% if hot %}
+  <div class="examples">
+    TRY:
+    {% for t in hot %}
+    <a class="pill" href="/{{ t }}">{{ t }}</a>
+    {% endfor %}
+  </div>
+  {% endif %}
+</section>
+
+{% endblock %}

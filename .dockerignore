@@ -1,0 +1,11 @@
+.env
+.venv
+__pycache__
+*.pyc
+data/decode.db
+data/og
+.DS_Store
+BUILD_REPORT.md
+HANDOFF.md
+mobile_shot.py
+qa_*.py

@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}{{ app_name }}: SEC red flags for any ticker, decoded live{% endblock %}
+{% block content %}
+
+<section class="land-hero">
+  <div class="kicker">OFFICIAL SEC FILINGS · LIVE · NO ACCOUNT</div>
+  <h1>Skip the noise. Read <em>the actual filings</em>.</h1>
+  <p class="note" style="max-width:680px;font-size:15px;">
+    Type any ticker. In seconds you get its risk index, every dilution machine,
+    reverse split, going-concern warning and delisting threat it filed this year,
+    a chart of how hard it has been printing shares, and exactly how many months
+    of cash are left at the current burn rate.
+    Every single number links to the filing it came from. If you can read, you can verify all of it yourself.
+  </p>
+  <form class="inline-form searchbar" action="/search" method="post">
+    <input type="text" name="ticker" placeholder="TYPE ANY TICKER" autofocus autocomplete="off" autocapitalize="characters">
+    <button class="btn" type="submit">DECODE →</button>
+  </form>
+  <div class="examples">
+    <a class="pill" href="/watchlist" style="border-color:var(--bad);color:var(--bad);">RANK YOUR WHOLE PORTFOLIO →</a>
+    <a class="pill" href="/bag-vs" style="border-color:var(--warn);color:var(--warn);">WHOSE BAG IS WORSE? →</a>
+    {% if hot %}
+    RECENTLY DECODED BY OTHERS:
+    {% for r in hot %}
+    <a class="pill" href="/{{ r.ticker }}">{{ r.ticker }}</a>
+    {% endfor %}
+    {% endif %}
+  </div>
+  <div class="recent-decodes" style="margin-top:26px;"></div>
+</section>
+
+<div class="how">
+  <div class="step">
+    <div class="sn">STEP 01</div>
+    <h3>Type any ticker</h3>
+    <p>Any US-listed issuer with SEC filings. Obscure microcaps included, especially those.</p>
+  </div>
+  <div class="step">
+    <div class="sn">STEP 02</div>
+    <h3>Read the stamps</h3>
+    <p>A 0-100 risk index built from red-flag phrase scans across the last 12 months of filings.</p>
+  </div>
+  <div class="step">
+    <div class="sn">STEP 03</div>
+    <h3>Go deeper</h3>
+    <p>What the newest filing changed, the cash countdown, insider paper trail, then a cited verdict with a fair-value bracket.</p>
+  </div>
+  <div class="step">
+    <div class="sn">STEP 04</div>
+    <h3>Watch it</h3>
+    <p>Get a Telegram alert whenever the next material filing drops. No account, no email.</p>
+  </div>
+</div>
+
+{% endblock %}

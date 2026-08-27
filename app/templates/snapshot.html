@@ -1,0 +1,1037 @@
+{% extends "base.html" %}
+{% block title %}{{ ticker }} red-flag report{% if risk %}: {{ risk.score }}/100 {{ risk.band }}{% endif %} | {{ app_name }}{% endblock %}
+{% block meta %}<meta name="description" content="{{ ticker }} ({{ name }}){% if risk %}: risk index {{ risk.score }}/100 ({{ risk.band }}). {{ risk.story }}{% endif %} Full cited report from official SEC filings, free, no account.">{% endblock %}
+{% block og %}<link rel="canonical" href="{{ page_url }}">
+<meta property="og:title" content="{{ ticker }}{% if risk %}: {{ risk.score }}/100 {{ risk.band }}{% else %} red-flag report{% endif %} | decoded.report">
+<meta property="og:description" content="{% if risk %}{{ risk.story }}{% else %}Live SEC red-flag report for {{ ticker }}.{% endif %}">
+<meta property="og:image" content="{{ og_image_url }}">
+<meta property="og:url" content="{{ page_url }}">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{ ticker }}{% if risk %}: {{ risk.score }}/100 {{ risk.band }}{% endif %} | decoded.report">
+<meta name="twitter:description" content="{% if risk %}{{ risk.story }}{% else %}Live SEC red-flag report for {{ ticker }}.{% endif %}">
+<meta name="twitter:image" content="{{ og_image_url }}">{% endblock %}
+{% block content %}
+
+<div class="hero">
+  <div>
+    <div class="kicker">CASE FILE · OPENED JUST FOR YOU</div>
+    <h1>{{ ticker }}</h1>
+    <div class="co">{{ name }}</div>
+    <div class="chips">
+      <span class="chip" id="mkt-price"><span class="spinner"></span>LAST CLOSE…</span>
+      {% if identity.exchange %}<span class="chip">{{ identity.exchange }}</span>{% endif %}
+      {% if identity.sic_description %}<span class="chip">{{ identity.sic_description }}</span>{% endif %}
+      {% if risk and risk.dilution and risk.dilution.pct_12m is not none %}<span class="chip" title="share count change over the trailing 12 months, from the company's own reported counts">SHARES {{ "%+.1f"|format(risk.dilution.pct_12m) }}% · 12M</span>{% endif %}
+      {% if risk and risk.runway_months is not none %}<span class="chip" title="cash on hand divided by monthly operating burn">CASH ~{{ [risk.runway_months|int, 0]|max }} MO</span>{% endif %}
+    </div>
+  </div>
+  {% if risk %}
+  <div class="stamp {{ risk.cls }}">
+    <div class="score">{{ risk.score }}</div>
+    <div class="band">{{ risk.band }}</div>
+    <div class="lbl">RISK INDEX</div>
+  </div>
+  {% endif %}
+</div>
+
+{% if risk %}
+<div class="breakwrap">
+  <div class="breakbar">
+    {% if risk.flags_score %}<span style="width:{{ (risk.flags_score * 4) }}%;background:#ff4d5e;" title="red flags"></span>{% endif %}
+    {% if risk.dilution_score %}<span style="width:{{ (risk.dilution_score * 4) }}%;background:#ff8a5c;" title="share printing"></span>{% endif %}
+    {% if risk.runway_score %}<span style="width:{{ (risk.runway_score * 4) }}%;background:#ffb224;" title="cash runway"></span>{% endif %}
+    {% if risk.cash_score %}<span style="width:{{ (risk.cash_score * 4) }}%;background:#e0a458;" title="cash draining"></span>{% endif %}
+    {% if risk.chronic_score %}<span style="width:{{ (risk.chronic_score * 4) }}%;background:#9b6dff;" title="years-long pattern"></span>{% endif %}
+    {% if risk.events_score %}<span style="width:{{ (risk.events_score * 4) }}%;background:#ff5c8a;" title="official 8-K notices"></span>{% endif %}
+  </div>
+  <div class="breaklegend">
+    {% if risk.flags_score %}<span><i style="background:#ff4d5e"></i>RED FLAGS {{ risk.flags_score }}</span>{% endif %}
+    {% if risk.dilution_score %}<span><i style="background:#ff8a5c"></i>SHARE PRINTING {{ risk.dilution_score }}</span>{% endif %}
+    {% if risk.runway_score %}<span><i style="background:#ffb224"></i>RUNWAY {{ risk.runway_score }}</span>{% endif %}
+    {% if risk.cash_score %}<span><i style="background:#e0a458"></i>CASH DRAIN {{ risk.cash_score }}</span>{% endif %}
+    {% if risk.chronic_score %}<span><i style="background:#9b6dff"></i>YEARS-LONG PATTERN {{ risk.chronic_score }}</span>{% endif %}
+    {% if risk.events_score %}<span><i style="background:#ff5c8a"></i>OFFICIAL 8-K NOTICES {{ risk.events_score }}</span>{% endif %}
+    <span class="muted">= {{ risk.score }}/100. WHY THIS NUMBER, PIECE BY PIECE.</span>
+  </div>
+</div>
+{% endif %}
+
+{% if risk %}
+<p class="story">
+  <span class="tag">THE READ</span>
+  {{ risk.story }}
+</p>
+{% endif %}
+
+{% if periodic and periodic.stale %}
+<div class="flag bad" style="margin-top:-14px;">
+  <div class="top">
+    <span class="name">THE FILINGS WENT QUIET</span>
+    <span class="hits"><span style="color:var(--bad)">LAST PERIODIC REPORT {{ periodic.days_since }} DAYS AGO</span></span>
+  </div>
+  <p class="meaning">{{ periodic.form }} filed {{ periodic.date }} is the most recent annual or quarterly report on record. Public companies must file at least every few months, so past ~150 days of silence usually means late filings, a trading suspension, or a company quietly deregistering. Everything else on this page still cites its filing; just know the record itself has gone stale.</p>
+</div>
+{% endif %}
+
+<div class="anchorbar">
+  <a href="#red-flags">FLAGS</a>
+  <a href="#printing">DILUTION</a>
+  <a href="#cash">CASH</a>
+  <a href="#what-changed">WHAT CHANGED</a>
+  <a href="#verdict">VERDICT</a>
+  <a href="#insiders">INSIDERS</a>
+  <a href="#osint">OUTSIDE RECORDS</a>
+  <button class="linklike" onclick="copyLink(this)">SHARE</button>
+  <button class="linklike" onclick="window.print()">PRINT CASE FILE</button>
+</div>
+<div class="mktline" id="mkt-status"></div>
+
+<!-- ============ 01 RED FLAGS ============ -->
+<section class="sec" id="red-flags">
+  <div class="sechead">
+    <span class="no">01</span><h2>Red Flags</h2><span class="rule"></span>
+    <span class="aux">{{ flag_range }} → {{ flag_end }}</span>
+  </div>
+  <p class="sub">We read every document this company filed with the SEC this year and counted the classic danger phrases. Where wording can be misleading, we open the actual documents and separate real warnings from accounting boilerplate. Each hit links to the exact document.</p>
+  {% for f in flags %}
+  <div class="flag {{ f.severity }}">
+    <div class="top">
+      <span class="name">{{ f.label }}</span>
+      <span class="hits">
+        {% if f.count is none %}<span class="muted">SCAN UNAVAILABLE</span>
+        {% elif f.effective is not none and f.effective == 0 and not f.count_all %}<span style="color:var(--ok)">CLEAN</span>
+        {% else %}
+          <span class="v {{ 'bad' if f.severity=='bad' else ('warn' if f.severity=='warn' else 'okv') }}">
+            {% if f.verified is not none %}{% if f.partial_coverage %}AT LEAST {{ f.verified }}{% else %}{{ f.verified }}{% endif %} REAL WARNING{{ 'S' if f.verified != 1 }}
+            {% else %}{{ f.count }} THIS YEAR{% endif %}
+          </span>
+          {% if f.verified is not none %}<span class="muted"> · {{ f.count }} matching doc{{ 'S' if f.count != 1 }} this year</span>{% endif %}
+          {% if f.count_all is not none and f.count_all > f.count %}<span class="muted"> · {{ f.count_all }} ALL TIME</span>{% endif %}
+        {% endif %}
+      </span>
+    </div>
+    <p class="meaning">{{ f.meaning }}</p>
+    {% set flag_clean = f.effective is not none and f.effective == 0 and not f.count_all %}
+    {% if f.top %}
+    <p class="cite">EVIDENCE:
+      {% for t in f.top %}[{{ loop.index }}] <a href="{{ t.url }}">{{ t.form }} FILED {{ t.date }}</a>{% if not loop.last %} · {% endif %}{% endfor %}
+      {% if not flag_clean %}<button class="linklike" style="margin-left:10px;" onclick="return copyFlag(this)">COPY</button>{% endif %}
+    </p>
+    {% endif %}
+  </div>
+  {% endfor %}
+  <p class="cite">SOURCE: FULL-TEXT SEARCH OF THE COMPANY'S OFFICIAL SEC FILINGS. "REAL WARNINGS" = WE OPENED THE LINKED DOCUMENTS AND FILTERED PHRASES WRAPPED IN NEGATIONS, RESOLUTION LANGUAGE OR STANDARD CONTRACT TERMS. "AT LEAST" = MORE DOCUMENTS CARRY THE PHRASE THIS YEAR THAN WE COULD OPEN AND READ.</p>
+</section>
+
+<!-- ============ 02 DILUTION ============ -->
+<section class="sec" id="printing">
+  <div class="sechead"><span class="no">02</span><h2>The Printing Press</h2><span class="rule"></span></div>
+  <p class="sub">How many shares exist, over time, exactly as the company reported in its own filings. In microcaps, a rising share count is how holders pay for everything: salaries, debts, and bad deals. Sudden collapses in the line are reverse splits, marked below.</p>
+  {% if dilution %}
+  <div class="chartbox">
+    <svg viewBox="0 0 {{ dilution.svg_w }} {{ dilution.svg_h }}" preserveAspectRatio="none" role="img" aria-label="shares outstanding trend">
+      <path d="{{ dilution.svg_area }}" fill="rgba(255,77,94,.14)"></path>
+      <polyline points="{{ dilution.svg_line }}" fill="none" stroke="#ff4d5e" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"></polyline>
+      {% for m in dilution.markers %}
+      <circle cx="{{ m.x }}" cy="{{ m.y }}" r="4.5" fill="#0b0e13" stroke="#ffb224" stroke-width="2"></circle>
+      {% endfor %}
+    </svg>
+    <div class="chartmeta">
+      <span><b>{{ dilution.first_val|fmt_int }}</b> shares · {{ dilution.first_end }}</span>
+      <span><b>{{ dilution.last_val|fmt_int }}</b> shares · {{ dilution.last_end }}</span>
+      {% if dilution.pct_12m is not none %}
+      <span>LAST 12M: <b class="{{ 'v bad' if dilution.pct_12m > 10 else ('v okv' if dilution.pct_12m < -5 else '') }}">{{ "%+.1f"|format(dilution.pct_12m) }}%</b></span>
+      {% endif %}
+      {% if dilution.cagr_pct is not none %}
+      <span>AVG/YEAR SINCE {{ dilution.first_end[:4] }}: <b>{{ "%+.1f"|format(dilution.cagr_pct) }}%</b></span>
+      {% endif %}
+      {% if dilution.markers %}<span class="v warn">◉ REVERSE-SPLIT-STYLE COLLAPSE × {{ dilution.markers|length }}</span>{% endif %}
+    </div>
+  </div>
+  <p class="cite">SOURCE: THE COMPANY'S OWN REPORTED SHARE COUNTS ACROSS {{ dilution.n }} FILINGS, STRAIGHT FROM SEC RECORDS</p>
+  <p class="mktline" id="mkt-splits"><span class="spinner"></span>CHECKING OFFICIAL SPLIT RECORDS…</p>
+
+  <div class="alertbox" id="yourslice">
+    <h3>What this means for YOUR shares</h3>
+    <p class="note">Type how many shares you hold. The math is plain division on the company's own reported counts.</p>
+    <form class="inline-form" onsubmit="return calcSlice(event)">
+      <input type="text" id="slice-shares" inputmode="numeric" placeholder="e.g. 10,000">
+      <button class="btn" type="submit">DO THE MATH →</button>
+    </form>
+    <div id="slice-out" class="sliceout"></div>
+  </div>
+  {% elif shares %}
+  <div class="stats">
+    <div class="stat"><div class="n">{{ shares.val|fmt_int }}</div><div class="t">SHARES OUTSTANDING TODAY</div><div class="s">as reported in the {{ shares.form }} filed {{ shares.filed }}</div></div>
+  </div>
+  <p class="cite">THIS COMPANY HAS NOT REPORTED ENOUGH PERIODS TO DRAW A TREND LINE YET. ONE NUMBER, CITED.</p>
+  {% else %}
+  <p class="note">This company has never published a share count in its filings. For a public company, that itself is unusual.</p>
+  {% endif %}
+</section>
+
+<!-- ============ 03 CASH ============ -->
+<section class="sec" id="cash">
+  <div class="sechead"><span class="no">03</span><h2>Cash Countdown</h2><span class="rule"></span></div>
+  <p class="sub">Cash in the bank against how fast the company burns it. When this hits zero, the next stop is usually a desperate raise at bad terms, and existing holders pay through dilution.</p>
+  {% if runway_months is not none %}
+  <div class="runwaywrap">
+    <div class="runwaybar"><span class="{{ 'bad' if runway_months < 6 else ('warn' if runway_months < 12 else 'ok') }}" style="width:{{ [((runway_months / 24) * 100), 100]|min }}%"></span></div>
+    <div class="chartmeta"><span><b>~{{ runway_months|int }} MONTH{{ 'S' if runway_months|int != 1 }}</b> OF CASH AT THE CURRENT BURN</span><span>BAR = SHARE OF A 24-MONTH WINDOW</span></div>
+  </div>
+  {% endif %}
+  {% if runway_months is not none or cash_on_hand or cash_chart %}
+  <div class="stats" style="margin-bottom:12px;">
+    {% if runway_months is not none %}<div class="stat"><div class="n {{ 'bad' if runway_months < 6 }}">{% if runway_months < 12 %}{{ runway_months|int }} MO{% else %}{{ "%.1f"|format(runway_months / 12) }} YRS{% endif %}</div><div class="t">EST RUNWAY</div><div class="s">cash ÷ monthly burn</div></div>{% endif %}
+    {% if monthly_burn %}<div class="stat"><div class="n">{{ monthly_burn|fmt_compact }}</div><div class="t">MONTHLY BURN</div><div class="s">operating cash deficit</div></div>{% endif %}
+    {% if cash_on_hand %}<div class="stat"><div class="n">{{ cash_on_hand|fmt_compact }}</div><div class="t">CASH ON HAND</div><div class="s">latest reported quarter</div></div>{% endif %}
+    {% if cash_delta_pct is not none %}
+    <div class="stat"><div class="n {{ 'bad' if cash_delta_pct <= -25 else ('okv' if cash_delta_pct > 0 else '') }}">{{ "%+.1f"|format(cash_delta_pct) }}%</div><div class="t">CASH CHANGE QoQ</div><div class="s">latest two reported quarters</div></div>
+    {% endif %}
+  </div>
+  {% endif %}
+  {% if cash_chart %}
+  <div class="chartbox">
+    <svg viewBox="0 0 {{ cash_chart.w }} {{ cash_chart.h }}" preserveAspectRatio="none" role="img" aria-label="cash over time">
+      {{ cash_chart.svg|safe }}
+    </svg>
+    <div class="chartmeta">
+      <span>CASH OVER TIME, LAST {{ cash_chart.n }} REPORTED QUARTERS</span>
+      <span>{{ cash_chart.first.val|fmt_compact }} → <b>{{ cash_chart.last.val|fmt_compact }}</b></span>
+      {% if cash_chart.pct is not none %}<span>TREND: <b class="{{ 'v okv' if cash_chart.pct > 0 else 'v bad' }}">{{ "%+.1f"|format(cash_chart.pct) }}%</b></span>{% endif %}
+    </div>
+  </div>
+  {% elif not runway_months is not none and not cash_on_hand %}
+  <p class="note">This company's filings do not report usable cash or burn figures. That is rare, and rarely good.</p>
+  {% endif %}
+  <p class="cite">RUNWAY = CASH ON HAND ÷ MONTHLY CASH BURN. SIMPLE ARITHMETIC ON THE COMPANY'S OWN REPORTED NUMBERS, NOT A PROJECTION.</p>
+</section>
+
+<!-- ============ 04 WHAT CHANGED ============ -->
+<section class="sec" id="what-changed">
+  <div class="sechead"><span class="no">04</span><h2>What the Newest Filing Changed</h2><span class="rule"></span></div>
+  <p class="sub">The latest filings, translated into holder impact. Every number cites its form, date and SEC link.</p>
+  {% if changes %}
+  {% for c in changes %}
+  <div class="change">
+    <div class="head">
+      <span class="name">{{ c.label }}</span>
+      {% if c.delta_pct is not none %}
+        {% set dp = c.delta_pct %}
+        {% set cls = '' %}
+        {% if c.key == 'shares' %}{% set cls = 'bad' if dp > 3 else 'okv' %}{% endif %}
+        {% if c.label == 'Cash and equivalents' %}{% set cls = 'bad' if dp <= -25 else ('okv' if dp > 0 else '') %}{% endif %}
+        {% if c.label == 'Total liabilities' %}{% set cls = 'bad' if dp > 5 else 'okv' %}{% endif %}
+        {% if c.label == 'Revenue' %}{% set cls = 'okv' if dp > 0 else 'bad' %}{% endif %}
+        <span class="v {{ cls }}">{{ "%+.1f"|format(dp) }}%</span>
+      {% endif %}
+    </div>
+    <p>{{ c.text }}</p>
+    {% if c.current %}
+    <p class="cite">NOW: {{ c.current.val|fmt_compact if c.key != 'shares' else c.current.val|fmt_int }} as of {{ c.current.end }}
+      ({% if c.current.url %}<a href="{{ c.current.url }}">{{ c.current.form }}, filed {{ c.current.filed }}</a>{% else %}{{ c.current.form }} filed {{ c.current.filed }}{% endif %})</p>
+    {% endif %}
+    {% if c.prior %}
+    <p class="cite">WAS: {{ c.prior.val|fmt_compact if c.key != 'shares' else c.prior.val|fmt_int }} as of {{ c.prior.end }}
+      ({% if c.prior.url %}<a href="{{ c.prior.url }}">{{ c.prior.form }}, filed {{ c.prior.filed }}</a>{% else %}{{ c.prior.form }} filed {{ c.prior.filed }}{% endif %})</p>
+    {% endif %}
+  </div>
+  {% endfor %}
+  {% else %}
+  <p class="note">Not enough reported periods to compute changes yet.</p>
+  {% endif %}
+
+  {% if critical_8k %}
+  {% if critical_8k.rows %}
+  <div class="sechead" style="margin-top:26px;"><span class="no">!</span><h2>Critical 8-K Ledger</h2><span class="rule"></span><span class="aux">OFFICIAL NOTICES · 24 MO</span></div>
+  <p class="sub">When something material happens, the company itself must announce it in an 8-K under the SEC's numbered item system. These are those announcements, newest first: bankruptcy papers, exchange delisting warnings, auditor changes, financials pulled back. Read straight from the SEC filing index, no interpretation layer.</p>
+  {% for r in critical_8k.rows %}
+  <div class="filing">
+    <span class="form" style="min-width:88px;">{{ r.date }}</span>
+    <span style="flex:1;flex-wrap:wrap;display:flex;gap:6px;">
+      {% for it in r.crits %}
+      <span class="chip" style="{% if it.tone == 'bad' %}border-color:var(--bad);color:var(--bad);{% elif it.tone == 'warn' %}border-color:var(--warn);color:var(--warn);{% endif %}" title="{{ it.item }} · {{ it.meaning }}">ITEM {{ it.item }} · {{ it.label }}</span>
+      {% endfor %}
+    </span>
+    <a href="{{ r.url }}" style="white-space:nowrap;">FILING ↗</a>
+  </div>
+  {% endfor %}
+  <p class="cite">SOURCE: THE ITEM NUMBERS THE COMPANY ITSELF PUT ON EACH 8-K IN THE SEC'S FILING INDEX. HOVER A STAMP FOR WHAT THAT ITEM MEANS FOR YOUR SHARES. OFFICIAL NOTICES INSIDE THE LAST 12 MONTHS ALSO FEED THE RISK INDEX ABOVE (CAPPED AT 15 POINTS).</p>
+  {% else %}
+  <p class="cite" style="margin-top:14px;">NO CRITICAL-ITEM 8-Ks ON FILE IN 24 MONTHS: NO BANKRUPTCY PAPERS, DELISTING NOTICES, AUDITOR CHANGES OR WITHDRAWN NUMBERS. SILENCE HERE IS THE GOOD KIND.</p>
+  {% endif %}
+  {% endif %}
+
+  {% if revenue_chart %}
+  <div class="chartbox" style="margin-top:14px;">
+    <svg viewBox="0 0 {{ revenue_chart.w }} {{ revenue_chart.h }}" preserveAspectRatio="none" role="img" aria-label="quarterly revenue">
+      {{ revenue_chart.svg|safe }}
+    </svg>
+    <div class="chartmeta">
+      <span>QUARTERLY REVENUE, LAST {{ revenue_chart.n }} QUARTERS</span>
+      <span>{{ revenue_chart.first.val|fmt_compact }} → <b>{{ revenue_chart.last.val|fmt_compact }}</b></span>
+      {% if revenue_chart.pct is not none %}<span>TREND: <b class="{{ 'v okv' if revenue_chart.pct > 0 else 'v bad' }}">{{ "%+.1f"|format(revenue_chart.pct) }}%</b></span>{% endif %}
+    </div>
+  </div>
+  <p class="cite">EACH BAR IS ONE REPORTED QUARTER. GREEN = MOST RECENT QUARTER GREW VS THE ONE BEFORE.</p>
+  {% endif %}
+
+  {% if new_filing %}
+  <div class="sechead" style="margin-top:26px;"><span class="no">!</span><h2>Breaking Filing</h2><span class="rule"></span><span class="aux">8-K · {{ new_filing.date }}</span></div>
+  <p class="sub">An 8-K is the "something happened right now" filing. Here is what this one says, in the company's own words.</p>
+  {% for it in new_filing['items'] %}
+  <div class="change">
+    <div class="head"><span class="name">Item {{ it.item }}</span></div>
+    <p>{{ it.text }}</p>
+  </div>
+  {% endfor %}
+  {% if new_filing.url %}<p class="cite"><a href="{{ new_filing.url }}">READ THE ORIGINAL FILING</a></p>{% endif %}
+  {% elif eightk_recent %}
+  <div id="breaking-slot" style="margin-top:14px;">
+    <div class="change"><div class="head"><span class="name"><span class="spinner"></span>READING THIS WEEK'S 8-K</span></div><p class="note">An 8-K landed in the last 7 days. We are pulling its text and pulling out what matters.</p></div>
+  </div>
+  {% else %}
+  <p class="cite" style="margin-top:14px;">NO 8-K IN THE LAST 7 DAYS. SILENCE IS NOTED TOO.</p>
+  {% endif %}
+</section>
+
+<!-- ============ 05 VERDICT ============ -->
+<section class="sec" id="verdict">
+  <div class="sechead"><span class="no">05</span><h2>The Verdict</h2><span class="rule"></span>
+    {% if verdict %}<span class="aux">{{ verdict.verdict }} · {{ verdict.confidence }} CONFIDENCE</span>{% endif %}
+  </div>
+  {% if verdict %}
+  <p class="sub">A rules-based reading of the cited filing facts: a range with reasons, never a prediction.</p>
+  <div class="stats">
+    <div class="stat"><div class="n {{ 'bad' if verdict.verdict in ('AVOID','SELL') else ('warn' if verdict.verdict == 'HOLD' else 'okv') }}">{{ verdict.verdict }}</div><div class="t">SCREENING VERDICT</div><div class="s">{{ verdict.confidence }} confidence</div></div>
+    {% if verdict.fair_value %}
+    <div class="stat"><div class="n">${{ "%.4f"|format(verdict.fair_value.low) if verdict.fair_value.low < 1 else "%.2f"|format(verdict.fair_value.low) }}-${{ "%.4f"|format(verdict.fair_value.high) if verdict.fair_value.high < 1 else "%.2f"|format(verdict.fair_value.high) }}</div><div class="t">FAIR VALUE BRACKET</div><div class="s">{{ verdict.fair_value.anchors[0] if verdict.fair_value.anchors else "cited filing facts" }}</div></div>
+    {% if price and not price.degraded and price.close %}
+    <div class="stat"><div class="n">${{ "%.2f"|format(price.close) }}</div><div class="t">LAST CLOSE</div><div class="s">non-realtime</div></div>
+    {% endif %}
+    {% endif %}
+  </div>
+  {% if verdict.fair_value and verdict.fair_value.anchors %}
+  <p class="cite">HOW THE BRACKET IS BUILT: {% for a in verdict.fair_value.anchors %}{{ a|upper }}{% if not loop.last %} · {% endif %}{% endfor %}.</p>
+  {% endif %}
+  {% if verdict.fair_value and verdict.fair_value.price_note %}<p class="cite">{{ verdict.fair_value.price_note|upper }}.</p>{% endif %}
+
+  <div class="twocol">
+    <div>
+      <h3 class="minihead" style="color:var(--ok);">BASIS FOR</h3>
+      {% for r in verdict.reasons %}
+      <div class="why"><span class="n plus">+{{ loop.index }}</span><p>{{ r }}</p></div>
+      {% else %}<p class="note">No cited positive facts.</p>{% endfor %}
+    </div>
+    <div>
+      <h3 class="minihead" style="color:var(--bad);">AGAINST</h3>
+      {% for c in verdict.cons %}
+      <div class="why"><span class="n minus">−{{ loop.index }}</span><p>{{ c }}</p></div>
+      {% else %}<p class="note">No cited negative facts.</p>{% endfor %}
+    </div>
+  </div>
+  <p class="cite">METHOD: {{ verdict.method|upper if verdict.method is defined else "DETERMINISTIC THRESHOLDS OVER CITED FACTS" }}</p>
+  {% else %}
+  <p class="note">Verdict engine degraded for this issuer: missing cited facts. Everything above still stands on its own citations.</p>
+  {% endif %}
+</section>
+
+<!-- ============ 06 INSIDERS ============ -->
+<section class="sec" id="insiders">
+  <div class="sechead"><span class="no">06</span><h2>Insider Paper Trail</h2><span class="rule"></span>
+    {% if insider_flows %}<span class="aux">{{ insider_flows.verdict }}</span>{% endif %}
+  </div>
+  <p class="sub">Every time an officer, director or big owner trades shares, the law makes them file a Form 4 within two business days. We read the actual filings: who traded, what kind of trade, how big, at what price.</p>
+  {% if insider_flows %}
+  <div class="stats">
+    <div class="stat">
+      <div class="n {{ 'okv' if insider_flows.buys.n else '' }}">{{ insider_flows.buys.n }}</div>
+      <div class="t">OPEN-MARKET BUYS</div>
+      <div class="s">{% if insider_flows.buys.n %}{{ insider_flows.buys.shares|fmt_int }} shares{% if insider_flows.buys.value %} · ~{{ insider_flows.buys.value|fmt_compact }} of their own money{% endif %}{% else %}nobody is buying with their own cash{% endif %}</div>
+    </div>
+    <div class="stat">
+      <div class="n {{ 'bad' if insider_flows.sells.n else '' }}">{{ insider_flows.sells.n }}</div>
+      <div class="t">OPEN-MARKET SELLS</div>
+      <div class="s">{% if insider_flows.sells.n %}{{ insider_flows.sells.shares|fmt_int }} shares{% if insider_flows.sells.value %} · ~{{ insider_flows.sells.value|fmt_compact }} cashed out{% endif %}{% else %}no open-market selling{% endif %}</div>
+    </div>
+    <div class="stat">
+      <div class="n {{ 'warn' if insider_flows.grants.n else '' }}">{{ insider_flows.grants.n }}</div>
+      <div class="t">GRANTS / AWARDS</div>
+      <div class="s">{% if insider_flows.grants.n %}{{ insider_flows.grants.shares|fmt_int }} new shares/options handed out: future dilution{% else %}none on record{% endif %}</div>
+    </div>
+    {% if insider_flows.plan.n %}
+    <div class="stat">
+      <div class="n {{ 'warn' if not insider_flows.all_sells_planned else '' }}">{{ insider_flows.plan.sells_n }}/{{ insider_flows.sells.n }}</div>
+      <div class="t">SELLS ON 10B5-1 PLANS</div>
+      <div class="s">{% if insider_flows.all_sells_planned %}every sale was pre-scheduled in advance: less alarming than a discretionary dump{% else %}some sales were discretionary, decided at the moment they happened{% endif %}</div>
+    </div>
+    {% endif %}
+  </div>
+
+  {% if insider_chart %}
+  <div class="chartbox">
+    <svg viewBox="0 0 {{ insider_chart.w }} {{ insider_chart.h }}" preserveAspectRatio="none" role="img" aria-label="insider buy vs sell dollars per month">
+      <line x1="0" y1="{{ insider_chart.mid }}" x2="{{ insider_chart.w }}" y2="{{ insider_chart.mid }}" stroke="#2b3446" stroke-width="1"></line>
+      {{ insider_chart.svg|safe }}
+      {{ insider_chart.labels|safe }}
+    </svg>
+    <div class="chartmeta">
+      <span><i style="display:inline-block;width:8px;height:8px;background:#35d49a;border-radius:2px;margin-right:5px;"></i>ABOVE THE LINE: CASH BUYS</span>
+      <span><i style="display:inline-block;width:8px;height:8px;background:#ff4d5e;border-radius:2px;margin-right:5px;"></i>BELOW THE LINE: CASH SELLS</span>
+      <span>6 MO: <b class="{{ 'v okv' if insider_chart.total_buy >= insider_chart.total_sell else 'v bad' }}">+{{ insider_chart.total_buy|fmt_compact }} / -{{ insider_chart.total_sell|fmt_compact }}</b></span>
+    </div>
+  </div>
+  <p class="cite">EACH MONTH SHOWS OPEN-MARKET DOLLAR FLOW PARSED FROM FORM 4 FILINGS. GRANTS AND OPTION PAPER ARE EXCLUDED: THIS IS REAL MONEY IN AND OUT.</p>
+  {% endif %}
+
+  {% if insider_flows.rows %}
+  <div class="filing" style="font-size:11px;color:var(--dim);border-bottom:1px solid var(--line2);">
+    <span class="form">DATE</span><span class="dt">WHO</span><span style="flex:1;">ACTION</span>
+  </div>
+  {% for r in insider_flows.rows %}
+  <div class="filing">
+    <span class="form {{ 'bad' if r.direction == 'SELL' else ('okv' if r.direction == 'BUY' else '') }}">{{ r.date }}</span>
+    <span class="dt" style="min-width:170px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ r.owner }}{% if r.roles %} ({{ r.roles|join(', ') }}){% endif %}">{{ r.owner }}{% if r.roles %} <span class="muted">{{ r.roles[0] }}</span>{% endif %}</span>
+    <span style="flex:1;">
+      <a href="{{ r.url }}" class="{{ 'v bad' if r.direction == 'SELL' else ('v okv' if r.direction == 'BUY' else 'muted') }}">{{ r.label }}</a>
+      {% if r.shares %}<span class="v" style="font-size:12px;">{{ r.shares|fmt_int }}{% if r.price and r.price > 0 %} @ ${{ "%.2f"|format(r.price) }}{% endif %}</span>{% endif %}
+      {% if r.kind == 'derivative' %}<span class="chip" style="margin-left:6px;">OPTIONS/DERIVATIVE</span>{% endif %}
+      {% if r.plan %}<span class="chip" style="margin-left:6px;border-color:var(--acc);color:var(--acc);" title="footnote in the Form 4 says this trade was pre-scheduled under a Rule 10b5-1 trading plan">10B5-1 PLAN</span>{% endif %}
+    </span>
+  </div>
+  {% endfor %}
+  {% endif %}
+  <p class="cite">
+    {% if insider_flows.verdict == 'NET SELLING' %}PEOPLE WITH THE BEST INFORMATION ABOUT THIS COMPANY ARE SELLING MORE THAN THEY BUY. NOT PROOF OF ANYTHING: EXECUTIVES SELL FOR MANY REASONS. BUT AT MICROCAP SCALE, IT RARELY SMELLS GOOD.
+    {% elif insider_flows.verdict == 'NET BUYING' %}INSIDERS SPENDING THEIR OWN MONEY AT THESE PRICES IS THE STRONGEST VOTE OF CONFIDENCE THE FILINGS CAN SHOW.
+    {% elif insider_flows.verdict == 'GRANTS ONLY' %}NO OPEN-MARKET BUYS OR SELLS: JUST COMPENSATION PAPER. WATCH WHETHER THE GRANTS TURN INTO SALES ONCE THEY VEST.
+    {% else %}NO OPEN-MARKET ACTIVITY ON RECORD IN THE LAST 120 DAYS.
+    {% endif %}
+    "10B5-1 PLAN" MEANS THE TRADE WAS SCHEDULED UNDER A PRE-SET TRADING PLAN, DISCLOSED IN THE FILING'S OWN FOOTNOTES: PRE-PLANNED SALES CARRY LESS SIGNAL THAN SPUR-OF-THE-MOMENT ONES.
+    SOURCE: FORM 4 FILINGS, PARSED FROM THE SEC'S OWN XML, LAST {{ insider_flows.docs_seen }} FILINGS.
+  </p>
+  {% else %}
+  <div id="insider-slot">
+    <div class="stats">
+      <div class="stat"><div class="n"><span class="spinner"></span></div><div class="t">PARSING FORM 4 FILINGS</div><div class="s">who bought, who sold, at what price: straight from the SEC's own XML</div></div>
+    </div>
+  </div>
+  <div id="insider-fallback" style="display:none;">
+    <div class="stats">
+      <div class="stat"><div class="n">{{ insider.count_30 }}</div><div class="t">INSIDER FILINGS · LAST 30 DAYS</div></div>
+      <div class="stat"><div class="n">{{ insider.count_90 }}</div><div class="t">INSIDER FILINGS · LAST 90 DAYS</div></div>
+      <div class="stat"><div class="n" style="font-size:15px;">{{ insider.last_date or "NONE ON RECORD" }}</div><div class="t">MOST RECENT ONE</div></div>
+    </div>
+    <p class="cite">COUNTS COME FROM THE FILING INDEX. THE TRADE-BY-TRADE PARSE DID NOT FINISH LOADING.</p>
+  </div>
+  {% endif %}
+</section>
+
+<!-- ============ 07 FILING TIMELINE ============ -->
+<section class="sec">
+  <div class="sechead"><span class="no">07</span><h2>Filing Timeline</h2><span class="rule"></span></div>
+  <p class="sub">The company's most recent SEC paperwork, newest first.</p>
+  {% for f in filings %}
+  <div class="filing {{ 'bad' if f.form == '8-K' }}">
+    <span class="form">{{ f.form }}</span>
+    <span class="dt">{{ f.filing_date }}</span>
+    <a href="{{ f.url }}">{{ f.accession }}</a>
+  </div>
+  {% endfor %}
+  <p class="cite">SOURCE: THE COMPANY'S SEC FILING INDEX</p>
+</section>
+
+<!-- ============ 08 OUTSIDE THE FILINGS ============ -->
+<section class="sec" id="osint">
+  <div class="sechead"><span class="no">08</span><h2>Outside the Filings</h2><span class="rule"></span></div>
+  <p class="sub">Public records that most investors never check, cross-checked against what the company claims. This is where shells slip up.</p>
+  <div class="stats">
+    <div class="stat" id="stat-domain1">
+      {% if domain %}
+      <div class="n" style="font-size:15px;">{% if domain.domain %}{{ domain.domain }}{% else %}NO WEBSITE FOUND{% endif %}</div>
+      <div class="t">WEB ADDRESS ON RECORD</div>
+      <div class="s">
+        {% if domain.status == 'ok' %}
+          registered {{ domain.registered }}{% if domain.registrar %} · via {{ domain.registrar }}{% endif %}
+        {% elif domain.status == 'not_registered' %}listed in filings but not registered: a real red flag
+        {% elif domain.domain %}registration data unavailable
+        {% else %}we read the company's recent filings: no working web address is published in them
+        {% endif %}
+      </div>
+      {% else %}
+      <div class="n"><span class="spinner"></span></div>
+      <div class="t">WEB ADDRESS ON RECORD</div>
+      <div class="s">digging the company's own filings for the web address it publishes, then checking public registration records</div>
+      {% endif %}
+    </div>
+    <div class="stat" id="stat-domain2">
+      {% if domain %}
+      <div class="n {{ 'bad' if domain.flags else ('okv' if domain.status == 'ok' else '') }}">{% if domain.status == 'ok' %}{{ domain.age_years }} YRS OLD{% elif domain.domain %}?{% else %}NONE{% endif %}</div>
+      <div class="t">DOMAIN AGE</div>
+      <div class="s">
+        {% if domain.status == 'ok' %}
+          {% if domain.age_years is not none and domain.age_years < 3 %}young web address: for a company claiming history, that is a classic shell tell{% else %}old and consistent with an operating company: a good sign{% endif %}
+        {% elif domain.domain %}age data unavailable
+        {% else %}nothing on record to date
+        {% endif %}
+      </div>
+      {% else %}
+      <div class="n"><span class="spinner"></span></div>
+      <div class="t">DOMAIN AGE</div>
+      <div class="s">registration records answer this one: old and boring is good</div>
+      {% endif %}
+    </div>
+    <div class="stat">
+      <div class="n">{{ pipeline['424B5_12m'] }}</div>
+      <div class="t">OFFICIAL OFFERING DOCS · 12M</div>
+      <div class="s">{% if pipeline['424B5_12m'] %}last one {{ pipeline.last_424B5 }}: shares were actually sold to the market{% else %}no completed stock sales to the public in a year{% endif %}</div>
+    </div>
+    <div class="stat">
+      <div class="n">{{ pipeline.shelf_12m }}</div>
+      <div class="t">SHELF REGISTRATIONS · 12M</div>
+      <div class="s">{% if pipeline.shelf_12m %}paperwork filed to allow future share sales: future dilution waiting{% else %}none filed: no dilution pipeline on record{% endif %}</div>
+    </div>
+    <div class="stat">
+      <div class="n {{ 'warn' if pipeline.control_12m else '' }}">{{ pipeline.control_12m }}</div>
+      <div class="t">BIG-OWNER TAKEOVER FILINGS · 12M</div>
+      <div class="s">{% if pipeline.control_12m %}an outside investor disclosed a stake big enough to influence control{% else %}no outside investor has crossed the 5% disclosure line this year{% endif %}</div>
+    </div>
+    <div class="stat" id="stat-float">
+      <div class="n"><span class="spinner"></span></div>
+      <div class="t">PUBLIC FLOAT</div>
+      <div class="s">shares actually tradable, vs held by insiders and big owners</div>
+    </div>
+    <div class="stat" id="stat-short">
+      <div class="n"><span class="spinner"></span></div>
+      <div class="t">SOLD SHORT</div>
+      <div class="s">FINRA short interest: how many shares are bets against this company, and how many days of trading it would take to cover</div>
+    </div>
+    <div class="stat">
+      <div class="n {{ 'bad' if sanctions.status == 'HIT' else 'okv' }}">{{ "FLAGGED" if sanctions.status == "HIT" else ("CLEAR" if sanctions.status == "clear" else "N/A") }}</div>
+      <div class="t">US SANCTIONS SCREEN</div>
+      <div class="s">company name checked against the official US sanctions list ({{ sanctions.list_size or "?" }} entries)</div>
+    </div>
+    <div class="stat" id="stat-gleif">
+      <div class="n"><span class="spinner"></span></div>
+      <div class="t">LEGAL IDENTITY (LEI)</div>
+      <div class="s">every company that trades securities must carry a global legal identifier: status, parent chain and subsidiaries from the official registry</div>
+    </div>
+    <div class="stat" id="stat-holders">
+      <div class="n"><span class="spinner"></span></div>
+      <div class="t">INSTITUTIONAL HOLDERS · 13F</div>
+      <div class="s">quarterly institutional holdings filings scanned for this exact company name: which funds still report holding shares, from their own filings</div>
+    </div>
+    <div class="stat" id="stat-wayback">
+      <div class="n"><span class="spinner"></span></div>
+      <div class="t">SITE HISTORY</div>
+      <div class="s">how long the company's website has been around, per the public web archive</div>
+    </div>
+    <div class="stat" id="stat-certs">
+      <div class="n"><span class="spinner"></span></div>
+      <div class="t">CERT RECORD</div>
+      <div class="s">public certificate logs date the company's web infrastructure: old and boring is good, brand-new is a tell</div>
+    </div>
+    <div class="stat" id="stat-whois">
+      <div class="n"><span class="spinner"></span></div>
+      <div class="t">REGISTRANT HISTORY</div>
+      <div class="s">old snapshots of public WHOIS pages: has the registered owner of this address changed hands</div>
+    </div>
+    <div class="stat" id="stat-dns">
+      <div class="n"><span class="spinner"></span></div>
+      <div class="t">HOSTING + MAIL RECORDS</div>
+      <div class="s">public DNS records: where the address is pointed and whether it can even receive mail</div>
+    </div>
+  </div>
+  {% if domain.flags %}
+    {% for fl in domain.flags %}
+    <div class="flag warn" style="margin-top:10px;">
+      <div class="top"><span class="name">{{ fl }}</span></div>
+      <p class="meaning">Cross-referenced from public domain registration records, not from anything the company says about itself.</p>
+    </div>
+    {% endfor %}
+  {% endif %}
+  <p class="cite">SOURCES: PUBLIC DOMAIN REGISTRATION RECORDS (FOUND IN THE COMPANY'S OWN FILING SIGNATURES) · THE COMPANY'S SEC FILING INDEX · OFFICIAL US SANCTIONS LIST · QUARTERLY 13F FILINGS VIA EDGAR FULL-TEXT SEARCH · LEGAL-IDENTITY, SITE-HISTORY, CERTIFICATE, REGISTRANT-HISTORY AND DNS SLOTS STREAM IN FROM FREE PUBLIC REGISTRIES WITHOUT BLOCKING THIS PAGE.</p>
+</section>
+
+<!-- ============ RELATED TICKERS ============ -->
+{% if related %}
+<section class="sec">
+  <div class="sechead"><span class="no">↳</span><h2>Others Under The Scanner</h2><span class="rule"></span></div>
+  <p class="sub">Real visitors who opened this case file also checked these tickers. Derived only from on-site search and watchlist activity of the last 90 days: no tracking, no cookies.</p>
+  <div class="examples">
+    {% for r in related %}
+    <a class="pill" href="/{{ r.ticker }}">{{ r.ticker }}</a>
+    {% endfor %}
+    <a class="pill" href="/watchlist?t={{ ticker }}{% for r in related %},{{ r.ticker }}{% endfor %}" style="border-color:var(--bad);color:var(--bad);">CHECK THEM ALL TOGETHER →</a>
+  </div>
+</section>
+{% endif %}
+
+<!-- ============ 09 COMPANY RECORD ============ -->
+<section class="sec">
+  <div class="sechead"><span class="no">09</span><h2>Company Record</h2><span class="rule"></span></div>
+  <div class="lrow"><span class="k">Legal name</span><span class="dots"></span><span class="v">{{ identity.company_name or name }}</span></div>
+  <div class="lrow"><span class="k">Fiscal year end</span><span class="dots"></span><span class="v">{{ identity.fiscal_year_end or "N/A" }}</span></div>
+  <div class="lrow"><span class="k">HQ</span><span class="dots"></span><span class="v">{{ identity.location or "N/A" }}</span></div>
+  <div class="lrow"><span class="k">SEC ID</span><span class="dots"></span><span class="v"><a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK={{ cik10 }}">{{ cik10 }}</a></span></div>
+  <div class="lrow"><span class="k">Last periodic report</span><span class="dots"></span><span class="v {{ 'bad' if periodic.stale }}">{% if periodic.date %}{{ periodic.date }} <span class="muted">({{ periodic.form }}, {{ periodic.days_since }}d ago)</span>{% else %}NONE ON RECORD{% endif %}</span></div>
+  {% if shares %}
+  <div class="lrow big"><span class="k">Shares outstanding</span><span class="dots"></span><span class="v">{{ shares.val|fmt_int }} <span class="muted">as of {{ shares.end }} ({{ shares.form }})</span></span></div>
+  {% if shares.source == 'weighted-average diluted' %}<p class="cite">THIS COMPANY NEVER PUBLISHES A POINT-IN-TIME SHARE COUNT, SO THE WEIGHTED-AVERAGE DILUTED COUNT IS SHOWN AS THE CLOSEST HONEST PROXY.</p>{% endif %}
+  {% endif %}
+  <p class="cite">SOURCE: THE COMPANY'S SEC FILING INDEX</p>
+</section>
+
+<!-- ============ ALERT CAPTURE ============ -->
+<section class="sec" id="save">
+  <div class="alertbox">
+    <h3>Next time {{ ticker }} files something scary, know within minutes.</h3>
+    <p class="note">One Telegram message per material filing: dilution, going concern, delisting, insider dumps. No account, no email. Every line cites its SEC source. Leave anytime with /unwatch.</p>
+    {% if tg_watch_url %}
+    <a class="btn" href="{{ tg_watch_url }}">WATCH {{ ticker }} ON TELEGRAM →</a>
+    {% else %}
+    <p class="cite">TELEGRAM ALERTS: BOT LINK PENDING CONFIG (SET TELEGRAM_BOT_TOKEN + TELEGRAM_BOT_USERNAME IN .ENV). THE FULL REPORT ABOVE NEEDS NOTHING.</p>
+    {% endif %}
+  </div>
+</section>
+
+<section class="sec">
+  <div class="sechead"><span class="no">+</span><h2>Decode Another Ticker</h2><span class="rule"></span></div>
+  <form class="inline-form searchbar" action="/search" method="post">
+    <input type="text" name="ticker" placeholder="TICKER" autocomplete="off" autocapitalize="characters">
+    <button class="btn" type="submit">DECODE →</button>
+  </form>
+  <div class="examples">
+    <a class="pill" href="/watchlist" style="border-color:var(--bad);color:var(--bad);">CHECK YOUR WHOLE PORTFOLIO →</a>
+    {% if hot %}{% for t in hot %}
+    <a class="pill" href="/{{ t }}">{{ t }}</a>
+    {% endfor %}{% endif %}
+  </div>
+  <div class="recent-decodes" style="margin-top:22px;"></div>
+</section>
+
+<script type="application/json" id="share-meta">{{ {"ticker": ticker, "score": risk.score if risk else none, "band": risk.band if risk else "", "story": risk.story if risk else ""}|tojson }}</script>
+<script>
+window.recordRecent("{{ ticker }}");
+function fmtSh(n){ return n.toLocaleString("en-US", {maximumFractionDigits: 0}); }
+function calcSlice(ev) {
+  ev.preventDefault();
+  var raw = document.getElementById("slice-shares").value.replace(/[,:\s]/g, "");
+  var mine = parseFloat(raw);
+  var out = document.getElementById("slice-out");
+  if (!mine || mine <= 0) { out.textContent = ">> Enter a share count first."; return false; }
+  var now = {% if dilution %}{{ dilution.last_val }}{% else %}0{% endif %};
+  var pct = {% if dilution and dilution.pct_12m is not none %}{{ dilution.pct_12m }}{% else %}null{% endif %};
+  if (!now) { out.textContent = ">> No share count on file to divide with."; return false; }
+  var lines = [];
+  var pctNow = mine / now * 100;
+  lines.push("Your stake today: <b>" + (pctNow < 0.01 ? pctNow.toFixed(6) : pctNow.toFixed(4)) + "%</b> of " + fmtSh(now) + " shares outstanding.");
+  if (pct !== null) {
+    if (pct > 0) {
+      var yearAgo = now / (1 + pct / 100);
+      var needed = mine * (1 + pct / 100);
+      lines.push("A year ago, those same " + fmtSh(mine) + " shares were <b>" + (mine / yearAgo * 100).toFixed(4) + "%</b> of the company.");
+      lines.push("Dilution cost: to hold that same slice today you would need <b>" + fmtSh(Math.round(needed)) + "</b> shares (" + fmtSh(Math.round(needed - mine)) + " more).");
+    } else if (pct < 0) {
+      lines.push("The share count shrank " + Math.abs(pct).toFixed(1) + "%, so your slice today is <b>bigger</b> than it was a year ago.");
+    } else {
+      lines.push("Share count held steady over the past year: your slice is unchanged.");
+    }
+  }
+  if (window.__lastPriceNum) {
+    lines.push("At the last close ($" + window.__lastPriceNum + "), your position is worth about <b>$" + fmtSh(Math.round(mine * window.__lastPriceNum)) + "</b>.");
+  }
+  var actions = '<div style="margin-top:12px;"><button class="btn ghost small" onclick="return saveSliceCard(' + Math.round(mine) + ')">SAVE CARD</button></div>';
+  out.innerHTML = lines.map(function(l){ return "· " + l; }).join("<br>") + actions;
+  return false;
+}
+function saveSliceCard(mine) {
+  var url = window.location.origin + "/og/slice.png?t={{ ticker }}&sh=" + mine;
+  window.open(url, "_blank");
+  return false;
+}
+function shareText() {
+  var meta = {};
+  try { meta = JSON.parse(document.getElementById("share-meta").textContent || "{}"); } catch (e) {}
+  var parts = [];
+  if (meta.score !== null && meta.score !== undefined && meta.score !== "") {
+    parts.push(meta.ticker + ": " + meta.score + "/100 " + (meta.band || "").toUpperCase());
+  }
+  if (meta.story) { parts.push(String(meta.story).slice(0, 220)); }
+  return parts.join(". ");
+}
+function copyFlag(btn) {
+  var box = btn.closest(".flag");
+  if (!box) return false;
+  var nameEl = box.querySelector(".name");
+  var hitsEl = box.querySelector(".hits");
+  var linkEl = box.querySelector('.cite a');
+  var name = nameEl ? nameEl.textContent.trim() : "";
+  var hits = hitsEl ? hitsEl.textContent.replace(/\s+/g, " ").trim() : "";
+  var txt = "{{ ticker }}" + ": " + name + " (" + hits + ")";
+  if (linkEl) { txt += ". Source filing: " + linkEl.href; }
+  txt += " via decoded.report/{{ ticker }}";
+  if (navigator.clipboard) { navigator.clipboard.writeText(txt); }
+  btn.textContent = "COPIED";
+  setTimeout(function(){ btn.textContent = "COPY"; }, 1600);
+  return false;
+}
+function copyLink(btn) {
+  var url = window.location.origin + "/{{ ticker }}";
+  var text = shareText();
+  if (navigator.share) {
+    navigator.share({ title: document.title, text: text, url: url }).catch(function(){});
+  } else if (navigator.clipboard) {
+    navigator.clipboard.writeText(text ? text + " " + url : url);
+    btn.textContent = "COPIED";
+    setTimeout(function(){ btn.textContent = "SHARE"; }, 1600);
+  }
+  return false;
+}
+</script>
+<script>
+// ---- market-data websocket (free-tier rate limited, honest waiting) ----
+(function(){
+  var statusEl = document.getElementById("mkt-status");
+  function clearSpinners(){
+    document.querySelectorAll(".spinner").forEach(function(el){ el.remove(); });
+  }
+  function fmtInt(n){ return n == null ? "?" : n.toLocaleString("en-US"); }
+  function giveUp(msg){
+    ["mkt-price","mkt-splits"].forEach(function(id){
+      var el = document.getElementById(id); if (el) el.style.display = "none";
+    });
+    ["stat-float","stat-short","stat-domain1","stat-domain2","stat-gleif","stat-holders","stat-wayback","stat-certs","stat-whois","stat-dns"].forEach(function(id){
+      var el = document.getElementById(id); if (el) el.style.display = "none";
+    });
+    var islot = document.getElementById("insider-slot");
+    if (islot) islot.style.display = "none";
+    var ifb = document.getElementById("insider-fallback");
+    if (ifb) ifb.style.display = "block";
+    var bslot = document.getElementById("breaking-slot");
+    if (bslot) bslot.innerHTML = '<div class="change"><p class="note">The breaking-filing read did not finish loading. The filing timeline below still shows everything on record.</p></div>';
+    if (statusEl && msg) statusEl.textContent = msg;
+    clearSpinners();
+  }
+  if (!window.WebSocket) { giveUp(); return; }
+  var proto = location.protocol === "https:" ? "wss://" : "ws://";
+  var ws;
+  try { ws = new WebSocket(proto + location.host + "/ws/market?t={{ ticker }}"); }
+  catch(e) { giveUp(); return; }
+  var guard = setTimeout(function(){ if (ws.readyState !== 1) { giveUp(); } }, 12000);
+  ws.onmessage = function(ev){
+    var m; try { m = JSON.parse(ev.data); } catch(e) { return; }
+    if (m.kind === "unavailable") { giveUp(); return; }
+    if (m.kind === "status" && statusEl) statusEl.textContent = "> " + m.msg;
+    if (m.kind === "wait" && statusEl) statusEl.textContent = "> MARKET-DATA QUOTA: NEXT SLOT IN ~" + Math.ceil(m.seconds) + "S (FREE TIER: 5 CALLS/MIN). THE REST OF THE REPORT DOES NOT WAIT.";
+    if (m.kind === "price" && m.data) {
+      var el = document.getElementById("mkt-price");
+      if (el && m.data.close) {
+        var px = m.data.close < 1 ? m.data.close.toFixed(4) : m.data.close.toFixed(2);
+        window.__lastPriceNum = Number(m.data.close);
+        el.textContent = "$" + px + " LAST CLOSE" + (m.data.date ? " · " + m.data.date : "") + " · NON-REALTIME";
+        el.style.borderColor = "var(--acc)"; el.style.color = "var(--acc)";
+      }
+    }
+    if (m.kind === "splits") {
+      var el = document.getElementById("mkt-splits");
+      if (el) {
+        var list = m.data || [];
+        if (!list.length) {
+          el.innerHTML = "OFFICIAL SPLIT RECORDS: NO SPLITS ON FILE FOR THIS TICKER.";
+        } else {
+          var html = "OFFICIAL SPLIT RECORDS: ";
+          list.forEach(function(sp){
+            var ratio = sp.reverse ? ("1-FOR-" + sp.split_from) : (sp.split_to + "-FOR-1");
+            html += '<span class="splitchip">' + (sp.reverse ? "REVERSE " : "") + ratio + " · EXECUTED " + sp.date + "</span> ";
+          });
+          el.innerHTML = html;
+        }
+      }
+    }
+    if (m.kind === "float") {
+      var el = document.getElementById("stat-float");
+      if (el && m.data && m.data.float) {
+        el.querySelector(".n").textContent = fmtInt(m.data.float);
+        el.querySelector(".s").textContent = "shares actually tradable (latest disclosed figure)";
+      } else if (el) {
+        el.querySelector(".n").textContent = "N/R";
+        el.querySelector(".s").textContent = "no float figure reported for this ticker";
+      }
+    }
+    if (m.kind === "short") {
+      var el = document.getElementById("stat-short");
+      if (el) {
+        if (m.data && m.data.shares) {
+          el.querySelector(".n").textContent = fmtInt(m.data.shares);
+          var s = "shares sold short";
+          if (m.data.days_to_cover) s += " · " + m.data.days_to_cover.toFixed(1) + " days of volume to cover";
+          if (m.data.settlement_date) s += " · as of " + m.data.settlement_date;
+          el.querySelector(".s").textContent = s;
+        } else {
+          el.querySelector(".n").textContent = "N/R";
+          el.querySelector(".s").textContent = "no FINRA short-interest data reported for this ticker";
+        }
+      }
+    }
+    if (m.kind === "domain") {
+      var d = m.data || {};
+      var e1 = document.getElementById("stat-domain1");
+      var e2 = document.getElementById("stat-domain2");
+      if (e1 && e2) {
+        if (d.domain) {
+          e1.querySelector(".n").textContent = d.domain;
+          e1.querySelector(".n").style.fontSize = "15px";
+          e1.querySelector(".s").textContent =
+            d.status === "ok" ? ("registered " + (d.registered || "?") + (d.registrar ? " · via " + d.registrar : ""))
+            : d.status === "not_registered" ? "listed in filings but not registered: a real red flag"
+            : "registration data unavailable";
+          if (d.status === "ok" && d.age_years != null) {
+            e2.querySelector(".n").textContent = d.age_years + " YRS OLD";
+            e2.querySelector(".n").className = "n " + (d.flags ? "bad" : "okv");
+            e2.querySelector(".s").textContent = d.age_years < 3
+              ? "young web address: for a company claiming history, that is a classic shell tell"
+              : "old and consistent with an operating company: a good sign";
+          } else {
+            e2.querySelector(".n").textContent = "?";
+            e2.querySelector(".s").textContent = "age data unavailable";
+          }
+        } else {
+          e1.querySelector(".n").textContent = "NO WEBSITE FOUND";
+          e1.querySelector(".s").textContent = "we read the company's recent filings: no working web address is published in them";
+          e2.querySelector(".n").textContent = "NONE";
+          e2.querySelector(".s").textContent = "nothing on record to date";
+        }
+      }
+    }
+    if (m.kind === "insider") {
+      var slot = document.getElementById("insider-slot");
+      var fl = m.data;
+      if (slot && fl && fl.rows && fl.rows.length) {
+        var h = '<div class="stats">';
+        h += '<div class="stat"><div class="n ' + (fl.buys.n ? "okv" : "") + '">' + fl.buys.n + '</div><div class="t">OPEN-MARKET BUYS</div><div class="s">' + (fl.buys.n ? fmtSh(fl.buys.shares) + " shares" + (fl.buys.value ? " · ~$" + fmtSh(fl.buys.value) + " of their own money" : "") : "nobody is buying with their own cash") + "</div></div>";
+        h += '<div class="stat"><div class="n ' + (fl.sells.n ? "bad" : "") + '">' + fl.sells.n + '</div><div class="t">OPEN-MARKET SELLS</div><div class="s">' + (fl.sells.n ? fmtSh(fl.sells.shares) + " shares" + (fl.sells.value ? " · ~$" + fmtSh(fl.sells.value) + " cashed out" : "") : "no open-market selling") + "</div></div>";
+        h += '<div class="stat"><div class="n ' + (fl.grants.n ? "warn" : "") + '">' + fl.grants.n + '</div><div class="t">GRANTS / AWARDS</div><div class="s">' + (fl.grants.n ? fmtSh(fl.grants.shares) + " new shares/options handed out: future dilution" : "none on record") + "</div></div>";
+        if (fl.plan && fl.plan.n) {
+          var allPlanned = fl.all_sells_planned;
+          h += '<div class="stat"><div class="n' + (allPlanned ? "" : " warn") + '">' + fl.plan.sells_n + "/" + fl.sells.n + '</div><div class="t">SELLS ON 10B5-1 PLANS</div><div class="s">' + (allPlanned ? "every sale was pre-scheduled in advance: less alarming than a discretionary dump" : "some sales were discretionary, decided at the moment they happened") + "</div></div>";
+        }
+        h += "</div>";
+        if (fl.chart && fl.chart.svg) {
+          var up = fl.chart.total_buy >= fl.chart.total_sell;
+          h += '<div class="chartbox"><svg viewBox="0 0 ' + fl.chart.w + " " + fl.chart.h + '" preserveAspectRatio="none">';
+          h += '<line x1="0" y1="' + fl.chart.mid + '" x2="' + fl.chart.w + '" y2="' + fl.chart.mid + '" stroke="#2b3446" stroke-width="1"></line>';
+          h += fl.chart.svg + fl.chart.labels;
+          h += "</svg><div class=\"chartmeta\">";
+          h += '<span><i style="display:inline-block;width:8px;height:8px;background:#35d49a;border-radius:2px;margin-right:5px;"></i>ABOVE THE LINE: CASH BUYS</span>';
+          h += '<span><i style="display:inline-block;width:8px;height:8px;background:#ff4d5e;border-radius:2px;margin-right:5px;"></i>BELOW THE LINE: CASH SELLS</span>';
+          h += "<span>6 MO: <b class=\"" + (up ? "v okv" : "v bad") + "\">+$" + fmtSh(fl.chart.total_buy) + " / -$" + fmtSh(fl.chart.total_sell) + "</b></span>";
+          h += "</div></div>";
+          h += '<p class="cite">EACH MONTH SHOWS OPEN-MARKET DOLLAR FLOW PARSED FROM FORM 4 FILINGS. GRANTS AND OPTION PAPER ARE EXCLUDED.</p>';
+        }
+        h += '<div class="filing" style="font-size:11px;color:var(--dim);border-bottom:1px solid var(--line2);"><span class="form">DATE</span><span class="dt">WHO</span><span style="flex:1;">ACTION</span></div>';
+        fl.rows.slice(0, 8).forEach(function(r){
+          var cls = r.direction === "SELL" ? "bad" : (r.direction === "BUY" ? "okv" : "");
+          var price = r.price && r.price > 0 ? " @ $" + (r.price < 1 ? r.price.toFixed(4) : r.price.toFixed(2)) : "";
+          h += '<div class="filing"><span class="form ' + cls + '">' + r.date + '</span><span class="dt" style="min-width:170px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (r.owner || "?") + (r.roles && r.roles.length ? ' <span class="muted">' + r.roles[0] + "</span>" : "") + '</span><span style="flex:1;"><a href="' + r.url + '" class="v ' + cls + '">' + r.label + "</a>" + (r.shares ? ' <span class="v" style="font-size:12px;">' + fmtSh(r.shares) + price + "</span>" : "") + (r.plan ? ' <span class="chip" style="margin-left:6px;border-color:var(--acc);color:var(--acc);">10B5-1 PLAN</span>' : "") + "</span></div>";
+        });
+        h += '<p class="cite">' + fl.verdict + " · PARSED FROM FORM 4 XML, LAST " + fl.docs_seen + " FILINGS.</p>";
+        slot.innerHTML = h;
+        var aux = document.querySelector("#insiders .sechead .aux");
+        if (aux) aux.textContent = fl.verdict;
+      } else if (slot) {
+        slot.style.display = "none";
+        var ifb2 = document.getElementById("insider-fallback");
+        if (ifb2) ifb2.style.display = "block";
+      }
+    }
+    if (m.kind === "breaking") {
+      var bslot2 = document.getElementById("breaking-slot");
+      if (bslot2) {
+        var nf = m.data;
+        if (nf && nf.items && nf.items.length) {
+          var bh = '<p class="sub">An 8-K is the "something happened right now" filing. Here is what this one says, in the company\'s own words.</p>';
+          nf.items.forEach(function(it){
+            bh += '<div class="change"><div class="head"><span class="name">Item ' + it.item + '</span></div><p>' + it.text + "</p></div>";
+          });
+          if (nf.url) bh += '<p class="cite"><a href="' + nf.url + '">READ THE ORIGINAL FILING</a></p>';
+          bslot2.innerHTML = bh;
+        } else {
+          bslot2.innerHTML = '<p class="cite">THE 8-K PARSED BUT CARRIED NO ITEM TEXT WE COULD EXTRACT HONESTLY.</p>';
+        }
+      }
+    }
+    if (m.kind === "gleif") {
+      var el = document.getElementById("stat-gleif");
+      if (el) {
+        var g = m.data || {};
+        if (g.status === "ok" && g.lei) {
+          var st = g.lei_status || "?";
+          var badSt = ["LAPSED", "RETIRED", "CANCELLED"].indexOf(st) >= 0;
+          el.querySelector(".n").textContent = st;
+          el.querySelector(".n").className = "n " + (badSt ? "bad" : "okv");
+          var s = "LEI " + g.lei;
+          if (g.registered_name && g.registered_name !== "{{ name }}") s += " · registered as " + g.registered_name;
+          if (g.country) s += " · " + g.country;
+          if (g.parent_chain && g.parent_chain.length) {
+            var pc = g.parent_chain[g.parent_chain.length - 1];
+            s += " · " + (pc.role === "ultimate" ? "ultimate parent: " : "parent: ") + (pc.name || pc.lei);
+          }
+          if (g.children && g.children.length) {
+            var dead = g.children.filter(function(ch){ return ["LAPSED","RETIRED","CANCELLED"].indexOf((ch.status || "")) >= 0; }).length;
+            s += " · " + g.children.length + (g.children_truncated ? "+" : "") + " direct subsidiaries";
+            if (dead) s += " (" + dead + " lapsed/retired)";
+          }
+          el.querySelector(".s").textContent = s + (badSt ? ": the legal identity registration has lapsed, a real red flag for an active filer" : "");
+        } else {
+          el.querySelector(".n").textContent = "NONE FOUND";
+          el.querySelector(".s").textContent = "no global legal identifier matched this exact company name in the official registry: not proof of anything, but shells and name games show up here first";
+        }
+      }
+    }
+    if (m.kind === "wayback") {
+      var el = document.getElementById("stat-wayback");
+      if (el) {
+        var w = m.data || {};
+        if (w.status === "ok") {
+          el.querySelector(".n").textContent = w.years_on_archive != null ? w.years_on_archive + " YRS ON ARCHIVE" : "?";
+          el.querySelector(".n").className = "n " + (w.flags && w.flags.length ? "bad" : "okv");
+          var ws2 = "";
+          if (w.first_seen) ws2 += "first captured " + w.first_seen;
+          if (w.last_seen) ws2 += " · last capture " + w.last_seen;
+          el.querySelector(".s").textContent = ws2 || "no captures found";
+          if (w.flags && w.flags.length) {
+            el.querySelector(".s").textContent += ". " + w.flags.join(". ") + ".";
+          }
+        } else if (w.status === "unarchived") {
+          el.querySelector(".n").textContent = "NEVER ARCHIVED";
+          el.querySelector(".s").textContent = "the public web archive holds no capture of the company's website";
+        } else {
+          el.querySelector(".n").textContent = "N/A";
+          el.querySelector(".s").textContent = "no website on record to check against the archive";
+        }
+      }
+    }
+    if (m.kind === "certs") {
+      var el = document.getElementById("stat-certs");
+      if (el) {
+        var c = m.data || {};
+        if (c.status === "ok") {
+          el.querySelector(".n").textContent = c.cert_age_years != null ? c.cert_age_years + " YRS OF CERTS" : c.hosts + " HOSTS";
+          el.querySelector(".n").className = "n " + (c.flags && c.flags.length ? "warn" : "okv");
+          var cs = "";
+          if (!c.coverage_truncated && c.earliest_cert) cs += "first certificate logged " + c.earliest_cert;
+          else if (c.earliest_cert) cs += "certificates on record since at least " + c.earliest_cert;
+          if (c.hosts) cs += (cs ? " · " : "") + c.hosts + " distinct hostnames in public logs";
+          if (c.coverage_truncated) cs += (cs ? " · " : "") + "public log feed is truncated: freshness reads are conservative";
+          el.querySelector(".s").textContent = cs || "no certificate detail available";
+          if (c.flags && c.flags.length) {
+            el.querySelector(".s").textContent += ". " + c.flags.join(". ") + ".";
+          }
+        } else if (c.status === "no_certs") {
+          el.querySelector(".n").textContent = "NO CERTS";
+          el.querySelector(".s").textContent = "no TLS certificate on public record for this domain";
+        } else {
+          el.querySelector(".n").textContent = "N/A";
+          el.querySelector(".s").textContent = "certificate logs unavailable right now";
+        }
+      }
+    }
+    if (m.kind === "holders") {
+      var el = document.getElementById("stat-holders");
+      if (el) {
+        var hd = m.data || {};
+        if (hd.status === "ok" && hd.institutions) {
+          el.querySelector(".n").textContent = hd.institutions;
+          el.querySelector(".n").className = "n okv";
+          var hs = "funds whose quarterly 13F holdings tables still list this company by its exact filing name";
+          if (hd.latest_period) hs += " · latest quarter on file " + hd.latest_period;
+          var tops = [];
+          (hd.top || []).forEach(function(r){
+            var nm = (r.name || "").replace(/\s*\(CIK[^)]*\)/i, "");
+            if (nm && tops.indexOf(nm) < 0) tops.push(nm);
+          });
+          if (tops.length) hs += " · e.g. " + tops.slice(0, 3).join(", ");
+          el.querySelector(".s").textContent = hs;
+        } else if (hd.status === "none_found") {
+          el.querySelector(".n").textContent = "NONE FOUND";
+          el.querySelector(".s").textContent = "no fund's quarterly 13F table matched this exact filing name recently: microcaps below the $100M reporting threshold often have no institutional holders at all, and name variants can slip the scan";
+        } else if (hd.status === "no_name") {
+          el.querySelector(".n").textContent = "N/A";
+          el.querySelector(".s").textContent = "no company name to scan against";
+        } else {
+          el.querySelector(".n").textContent = "N/A";
+          el.querySelector(".s").textContent = "the 13F holder scan could not finish just now; it does not affect the rest of this report";
+        }
+      }
+    }
+    if (m.kind === "whoishist") {
+      var el = document.getElementById("stat-whois");
+      if (el) {
+        var wq = m.data || {};
+        if (wq.status === "ok" && wq.snapshots && wq.snapshots.length) {
+          var changed = wq.flags && wq.flags.length;
+          var first = wq.snapshots[0] || {};
+          el.querySelector(".n").textContent =
+            wq.distinct_registrants > 1 ? "HANDS CHANGED"
+            : first.registrant ? (first.registrant === "REDACTED FOR PRIVACY" ? "REDACTED" : "SAME HANDS")
+            : "?";
+          el.querySelector(".n").className = "n " + (changed ? "bad" : "okv");
+          var qs = "";
+          wq.snapshots.forEach(function(sn){
+            if (!sn.captured) return;
+            qs += (qs ? " · " : "") + sn.captured + ": ";
+            qs += sn.registrant ? sn.registrant : "registrant line not readable in that capture";
+          });
+          if (!qs) qs = "archived WHOIS captures exist but no registrant line could be read honestly";
+          if (wq.archived_captures > wq.snapshots.length) qs += " (" + wq.archived_captures + " captures found)";
+          if (changed) qs += ". " + wq.flags.join(". ") + ".";
+          el.querySelector(".s").textContent = qs;
+        } else if (wq.status === "no_archived_whois") {
+          el.querySelector(".n").textContent = "NO ARCHIVE";
+          el.querySelector(".s").textContent = "the public web archive holds no WHOIS page for this address: nothing to reconstruct history from";
+        } else if (wq.status === "no_domain") {
+          el.querySelector(".n").textContent = "N/A";
+          el.querySelector(".s").textContent = "no website on record to trace";
+        } else {
+          el.querySelector(".n").textContent = "N/A";
+          el.querySelector(".s").textContent = "the archive check did not finish just now";
+        }
+      }
+    }
+    if (m.kind === "dns") {
+      var el = document.getElementById("stat-dns");
+      if (el) {
+        var dz = m.data || {};
+        if (dz.status === "ok") {
+          var noMail = !!dz.no_mail;
+          el.querySelector(".n").textContent = noMail ? "NO MAIL RECORD"
+            : (dz.mx_provider || (dz.mx.length + " MAIL HOST" + (dz.mx.length === 1 ? "" : "S")));
+          el.querySelector(".n").className = "n " + ((dz.flags && dz.flags.length) || noMail ? "warn" : "okv");
+          var ds2 = "";
+          if (dz.nameservers && dz.nameservers.length) ds2 += "nameserver: " + dz.nameservers[0];
+          if (dz.mx && dz.mx.length) ds2 += (ds2 ? " · mail via " + dz.mx[0] : "mail via " + dz.mx[0]);
+          if (noMail) ds2 += (ds2 ? " · " : "") + "public DNS lists no mail server for this address: operations do not run through it";
+          el.querySelector(".s").textContent = ds2 || "no nameserver or mail detail published";
+          if (dz.flags && dz.flags.length) {
+            el.querySelector(".s").textContent += ". " + dz.flags.join(". ") + ".";
+          }
+        } else if (dz.status === "no_domain") {
+          el.querySelector(".n").textContent = "N/A";
+          el.querySelector(".s").textContent = "no website on record to query";
+        } else {
+          el.querySelector(".n").textContent = "N/A";
+          el.querySelector(".s").textContent = "DNS lookup unavailable right now";
+        }
+      }
+    }
+    if (m.kind === "ticker_done" || m.kind === "all_done") {
+      if (statusEl && m.kind === "all_done") statusEl.textContent = "";
+      clearSpinners();
+    }
+  };
+  ws.onerror = function(){ giveUp(); };
+  ws.onclose = function(){ clearTimeout(guard); clearSpinners(); };
+})();
+</script>
+{% endblock %}

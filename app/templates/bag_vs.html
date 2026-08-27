@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block title %}{{ og_title }} | {{ app_name }}{% endblock %}
+{% block meta %}<meta name="description" content="{{ og_desc }}">{% endblock %}
+{% block og %}<link rel="canonical" href="{{ page_url }}">
+<meta property="og:title" content="{{ og_title }} | decoded.report">
+<meta property="og:description" content="{{ og_desc }}">
+<meta property="og:image" content="{{ og_image_url }}">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{ og_title }} | decoded.report">
+<meta name="twitter:description" content="{{ og_desc }}">
+<meta name="twitter:image" content="{{ og_image_url }}">{% endblock %}
+
+{% macro side_panel(rows, avg, tag, raw, is_winner, winner) %}
+<section class="sec" style="flex:1;min-width:320px;margin-top:0;{% if is_winner %}border-color:var(--bad);{% endif %}">
+  <div class="sechead"><span class="no">{{ tag }}</span><h2>BAG {{ tag }}</h2><span class="rule"></span>
+    {% if winner == 'tie' %}<span class="aux">DEAD EVEN</span>
+    {% elif is_winner %}<span class="aux" style="color:var(--bad);">WORSE BAG</span>{% endif %}
+  </div>
+  <div class="chartmeta" style="margin-bottom:12px;">
+    <span>AVG RISK INDEX</span>
+    <span style="font-size:34px;font-weight:800;color:{{ 'var(--bad)' if is_winner else 'var(--ink)' }};">{{ avg if avg is not none else "?" }}</span>
+  </div>
+  {% for r in rows %}
+  {% if r.error %}
+  <div class="flag unknown">
+    <div class="top">
+      <span class="name"><a href="/{{ r.ticker }}" style="color:var(--ink);">{{ r.ticker }}</a></span>
+      <span class="hits"><span class="muted">NO SEC FILINGS FOUND</span></span>
+    </div>
+  </div>
+  {% else %}
+  <div class="wlrow" style="padding:12px 14px;">
+    <div class="wlstamp {{ r.cls }}"><span class="s">{{ r.score }}</span><span class="b">{{ r.band }}</span></div>
+    <div class="wlmain">
+      <div class="wlhead">
+        <a href="/{{ r.ticker }}" class="wlt">{{ r.ticker }}</a>
+        <span class="wlname">{{ r.name }}</span>
+        {% if r.verdict %}<span class="chip" style="margin-left:auto;">{{ r.verdict }}</span>{% endif %}
+      </div>
+      <p class="wlstory">{{ r.story }}</p>
+      <div class="chartmeta" style="margin-top:6px;">
+        {% if r.dilution_12m is not none %}<span>SHARES 12M: <b>{{ "%+.1f"|format(r.dilution_12m) }}%</b></span>{% endif %}
+        {% if r.runway_months is not none %}<span>CASH: <b>~{{ r.runway_months|int }} MO</b></span>{% endif %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+  {% endfor %}
+  <p class="cite" style="margin-top:10px;"><a href="/watchlist?t={{ raw }}">OPEN BAG {{ tag }} IN THE FULL BAG CHECK →</a></p>
+</section>
+{% endmacro %}
+
+{% block content %}
+
+<div class="hero">
+  <div>
+    <div class="kicker">BAG VS BAG</div>
+    <h1 style="font-size:clamp(34px,5vw,54px);">Whose bag is worse?</h1>
+    <p class="note" style="max-width:640px;margin-top:10px;">
+      Two lineups enter, the risk index decides. Same engine as every report:
+      verified red flags, share printing, cash countdown. No mercy.
+    </p>
+  </div>
+</div>
+
+<form class="inline-form searchbar" action="/bag-vs" method="get">
+  <input type="text" name="a" value="{{ raw_a }}" placeholder="YOUR TICKERS" autocomplete="off" autocapitalize="characters">
+  <input type="text" name="b" value="{{ raw_b }}" placeholder="THEIR TICKERS" autocomplete="off" autocapitalize="characters">
+  <button class="btn" type="submit">SETTLE IT →</button>
+</form>
+<p class="cite" style="margin-top:10px;">UP TO 8 TICKERS PER SIDE. THE LINK RE-RUNS THE FIGHT LIVE, SO IT NEVER GOES STALE.</p>
+
+{% if queried %}
+<section class="sec">
+  <div class="sechead"><span class="no">VS</span><h2>The Verdict</h2><span class="rule"></span><span class="aux">{{ raw_a }} vs {{ raw_b }}</span></div>
+
+  {% if verdict_line %}
+  <div class="alertbox" style="border-color:var(--bad);">
+    <h3>{{ verdict_line }}</h3>
+    <p class="note">Average risk index across each side's scored tickers. Higher means more trouble per holding.</p>
+  </div>
+  {% else %}
+  <p class="note">Neither side has enough scored tickers to crown anything yet. Fix the symbols and re-run.</p>
+  {% endif %}
+
+  <div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:18px;">
+    {{ side_panel(side_a, avg_a, "A", raw_a, winner == "a", winner) }}
+    {{ side_panel(side_b, avg_b, "B", raw_b, winner == "b", winner) }}
+  </div>
+
+  <div class="chartmeta" style="margin-top:16px;">
+    <span><button class="linklike" onclick="return shareMatchup(this)">SHARE THIS MATCHUP</button></span>
+  </div>
+</section>
+{% endif %}
+
+<section class="sec">
+  <div class="sechead"><span class="no">?</span><h2>How The Fight Works</h2><span class="rule"></span></div>
+  <div class="how">
+    <div class="step">
+      <div class="sn">INPUT</div>
+      <h3>Both lineups</h3>
+      <p>Paste up to 8 tickers per side, comma-separated.</p>
+    </div>
+    <div class="step">
+      <div class="sn">SCAN</div>
+      <h3>Same engine as every report</h3>
+      <p>Each ticker gets its full risk index from official SEC filings, cited line by line.</p>
+    </div>
+    <div class="step">
+      <div class="sn">CROWN</div>
+      <h3>Average index wins</h3>
+      <p>The side carrying more trouble per ticker takes it. Ties mean you should both sell.</p>
+    </div>
+  </div>
+</section>
+
+<script type="application/json" id="share-meta">{{ {"title": og_title, "desc": og_desc, "raw_a": raw_a, "raw_b": raw_b}|tojson }}</script>
+<script>
+function matchupUrl() {
+  var meta = {};
+  try { meta = JSON.parse(document.getElementById("share-meta").textContent || "{}"); } catch (e) {}
+  return window.location.origin + "/bag-vs?a=" + encodeURIComponent(meta.raw_a || "") + "&b=" + encodeURIComponent(meta.raw_b || "");
+}
+function shareMatchup(btn) {
+  var meta = {};
+  try { meta = JSON.parse(document.getElementById("share-meta").textContent || "{}"); } catch (e) {}
+  var url = matchupUrl();
+  var text = (meta.title || "Whose bag is worse?") + ": " + (meta.desc || "");
+  if (navigator.share) {
+    navigator.share({ title: document.title, text: text, url: url }).catch(function(){});
+  } else if (navigator.clipboard) {
+    navigator.clipboard.writeText(text + " " + url);
+    btn.textContent = "COPIED";
+    setTimeout(function(){ btn.textContent = "SHARE THIS MATCHUP"; }, 1600);
+  }
+  return false;
+}
+</script>
+{% endblock %}

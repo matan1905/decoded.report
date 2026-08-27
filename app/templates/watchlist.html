@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}{{ og_title if queried else "The Bag Check: your tickers, ranked by danger" }} | {{ app_name }}{% endblock %}
+{% block meta %}<meta name="description" content="{{ og_desc }}">{% endblock %}
+{% block og %}<link rel="canonical" href="{{ page_url }}">
+<meta property="og:title" content="{{ og_title if queried else "The Bag Check" }} | decoded.report">
+<meta property="og:description" content="{{ og_desc }}">
+<meta property="og:image" content="{{ og_image_url }}">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{ og_title if queried else "The Bag Check" }} | decoded.report">
+<meta name="twitter:description" content="{{ og_desc }}">
+<meta name="twitter:image" content="{{ og_image_url }}">{% endblock %}
+{% block content %}
+
+<div class="hero">
+  <div>
+    <div class="kicker">THE BAG CHECK</div>
+    <h1 style="font-size:clamp(34px,5vw,54px);">Your tickers, ranked by how much trouble they're in.</h1>
+    <p class="note" style="max-width:640px;margin-top:10px;">
+      Paste every microcap you hold. Each one gets the full treatment:
+      red flags, share printing, cash countdown, insider trades. Worst offender on top.
+    </p>
+  </div>
+</div>
+
+<form class="inline-form searchbar" action="/watchlist" method="post">
+  <input type="text" name="tickers" value="{{ tickers_raw }}" placeholder="TICKERS, COMMA SEPARATED, UP TO 8" autocomplete="off" autocapitalize="characters">
+  <button class="btn" type="submit">RANK MY BAGS →</button>
+</form>
+<p class="cite" style="margin-top:10px;">UP TO 8 TICKERS, COMMA-SEPARATED. EACH FULL REPORT IS ONE CLICK AWAY.
+{% if queried %} · <button class="linklike" onclick="return shareLineup(this)">SHARE THIS LINEUP</button>{% endif %}</p>
+
+{% if queried %}
+<section class="sec">
+  <div class="sechead"><span class="no">Σ</span><h2>The Lineup</h2><span class="rule"></span><span class="aux">{{ results|length }} CASE FILES</span></div>
+
+  {% for r in results %}
+  {% if r.error %}
+  <div class="flag unknown">
+    <div class="top">
+      <span class="name"><a href="/{{ r.ticker }}" style="color:var(--ink);">{{ r.ticker }}</a></span>
+      <span class="hits"><span class="muted">NO SEC FILINGS FOUND</span></span>
+    </div>
+    <p class="meaning">Not in the SEC's system under this symbol. Delisted, private, or a typo.</p>
+  </div>
+  {% else %}
+  <div class="wlrow">
+    <div class="wlstamp {{ r.cls }}"><span class="s">{{ r.score }}</span><span class="b">{{ r.band }}</span></div>
+    <div class="wlmain">
+      <div class="wlhead">
+        <a href="/{{ r.ticker }}" class="wlt">{{ r.ticker }}</a>
+        <span class="wlname">{{ r.name }}</span>
+        {% if r.verdict %}<span class="chip" style="margin-left:auto;">{{ r.verdict }}</span>{% endif %}
+      </div>
+      <p class="wlstory">{{ r.story }}</p>
+      <div class="chartmeta" style="margin-top:8px;">
+        {% if r.dilution_12m is not none %}<span>SHARES 12M: <b class="{{ 'v bad' if r.dilution_12m > 10 else ('v okv' if r.dilution_12m < -5 else '') }}">{{ "%+.1f"|format(r.dilution_12m) }}%</b></span>{% endif %}
+        {% if r.runway_months is not none %}<span>CASH: <b class="{{ 'v bad' if r.runway_months < 6 else '' }}">~{{ r.runway_months|int }} MO</b></span>{% endif %}
+        {% if r.driver %}<span>TOP DRIVER: <b>{{ r.driver|upper }}</b></span>{% endif %}
+      </div>
+    </div>
+    <a class="btn ghost small wlgo" href="/{{ r.ticker }}">OPEN CASE FILE →</a>
+  </div>
+  {% endif %}
+  {% endfor %}
+
+  <div class="alertbox" style="border-color:var(--bad);">
+    <h3>Whose bag is worse?</h3>
+    <p class="note">Paste a friend's tickers and settle it: two lineups, head to head, ranked by the same risk index. Loser buys coffee.</p>
+    <form class="inline-form" action="/bag-vs" method="get">
+      <input type="hidden" name="a" value="{{ tickers_raw }}">
+      <input type="text" name="b" placeholder="THEIR TICKERS: TICKER1, TICKER2, ..." autocomplete="off" autocapitalize="characters">
+      <button class="btn ghost" type="submit">SETTLE IT →</button>
+    </form>
+  </div>
+
+  <div class="alertbox">
+    <h3>One Telegram message when any of these files something material.</h3>
+    <p class="note">The whole bag, watched in one place: dilution, going concern, delisting notices, insider dumps. No account, no email. Every line cites its SEC source. /unwatch to stop.</p>
+    {% if tg_watch_url %}
+    <a class="btn" href="{{ tg_watch_url }}">WATCH THE WHOLE BAG ON TELEGRAM →</a>
+    {% else %}
+    <p class="cite">TELEGRAM ALERTS: BOT LINK PENDING CONFIG. THE RANKING ABOVE NEEDS NOTHING.</p>
+    {% endif %}
+  </div>
+
+  <p class="cite">RANKED BY RISK INDEX, WORST FIRST. EVERY ROW LINKS TO THE FULL CITED REPORT.</p>
+</section>
+{% endif %}
+
+<section class="sec">
+  <div class="sechead"><span class="no">?</span><h2>How The Ranking Works</h2><span class="rule"></span></div>
+  <div class="how">
+    <div class="step">
+      <div class="sn">INPUT</div>
+      <h3>Your tickers</h3>
+      <p>Any US-listed names. The obscure ones are exactly why this exists.</p>
+    </div>
+    <div class="step">
+      <div class="sn">SCAN</div>
+      <h3>Same engine as every report</h3>
+      <p>Red-flag scans, share-count history, cash burn, insider Form 4s: all from official filings.</p>
+    </div>
+    <div class="step">
+      <div class="sn">RANK</div>
+      <h3>Worst on top</h3>
+      <p>The 0-100 risk index decides the order, so you know where to look first.</p>
+    </div>
+  </div>
+</section>
+
+<script type="application/json" id="share-meta">{{ {"title": og_title if queried else "The Bag Check", "desc": og_desc, "tickers": tickers_raw}|tojson }}</script>
+<script>
+function shareLineup(btn) {
+  var meta = {};
+  try { meta = JSON.parse(document.getElementById("share-meta").textContent || "{}"); } catch (e) {}
+  var url = window.location.origin + "/watchlist?t=" + encodeURIComponent(meta.tickers || "");
+  var text = (meta.title ? meta.title : "The Bag Check") + ": " + (meta.desc || "");
+  if (navigator.share) {
+    navigator.share({ title: document.title, text: text, url: url }).catch(function(){});
+  } else if (navigator.clipboard) {
+    navigator.clipboard.writeText(text + " " + url);
+    btn.textContent = "COPIED";
+    setTimeout(function(){ btn.textContent = "SHARE THIS LINEUP"; }, 1600);
+  }
+  return false;
+}
+</script>
+{% endblock %}
