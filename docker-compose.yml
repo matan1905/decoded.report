@@ -15,8 +15,9 @@ services:
       - TG_WEBHOOK_SECRET
       - ADMIN_USERNAME
       - ADMIN_PASSWORD
-    ports:
-      - "8000:8000"
+    # No host port mapping: Coolify's proxy reaches the container directly
+    # through the "Port Exposes" value (8000). Publishing a host port would
+    # collide with whatever else runs on the box.
     volumes:
       - ./data:/app/data
     healthcheck:
