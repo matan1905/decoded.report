@@ -34,14 +34,14 @@ templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 def _fmt_int(v):
     try:
         return f"{int(round(float(v))):,}"
-    except (TypeError, ValueError):
+    except Exception:
         return "n/a"
 
 
 def _timestamp_ago(v):
     try:
         dt = max(0.0, time.time() - float(v))
-    except (TypeError, ValueError):
+    except Exception:
         return "?"
     if dt < 90:
         return f"{int(dt)}s ago"
@@ -196,13 +196,31 @@ def _snapshot_data(t: str, cik: int, name: str, deep: bool = True) -> dict:
     three document-heavy probes (insider Form 4 XMLs, domain intel, breaking
     8-K text); those stream in over the websocket instead so a cold ticker
     page renders fast."""
-    submissions = sec.submissions(cik)
+    # every gather step degrades independently: a flaky SEC response or a
+    # rate-limited probe must show an honest "unavailable" slot, never a 500
+    try:
+        submissions = sec.submissions(cik)
+    except Exception as exc:
+        log.warning("submissions unavailable for %s: %s", t, exc)
+        submissions = {}
     identity = _identity(submissions)
-    shares = sec.share_count(cik)
-    share_hist = sec.share_history(cik)
-    filings = sec.recent_filings(cik, 6)
-    flags = sec.scan_flags(cik)
-    insider = sec.insider_summary(cik)
+    try:
+        shares = sec.share_count(cik)
+        share_hist = sec.share_history(cik)
+        filings = sec.recent_filings(cik, 6)
+    except Exception as exc:
+        log.warning("filing index unavailable for %s: %s", t, exc)
+        shares, share_hist, filings = None, [], []
+    try:
+        flags = sec.scan_flags(cik)
+    except Exception as exc:
+        log.warning("flag scan unavailable for %s: %s", t, exc)
+        flags = {"results": [], "range_start": "", "range_end": ""}
+    try:
+        insider = sec.insider_summary(cik)
+    except Exception as exc:
+        log.warning("insider summary unavailable for %s: %s", t, exc)
+        insider = {"count_90": 0, "count_30": 0, "last_date": None}
     insider_flows = None
     if deep:
         try:
@@ -210,7 +228,11 @@ def _snapshot_data(t: str, cik: int, name: str, deep: bool = True) -> dict:
         except Exception as exc:
             log.warning("insider flows failed for %s: %s", t, exc)
             insider_flows = None
-    price = get_price(t)
+    try:
+        price = get_price(t)
+    except Exception as exc:
+        log.warning("price unavailable for %s: %s", t, exc)
+        price = {"source": "none", "degraded": True, "cached": False}
 
     # keyless depth: reuse the cached delta output for runway + cash trend
     runway_months, cash_delta_pct, monthly_burn, cash_on_hand = None, None, None, None
@@ -250,8 +272,18 @@ def _snapshot_data(t: str, cik: int, name: str, deep: bool = True) -> dict:
 
     # OSINT probes (keyless, each degrades independently)
     pipeline = osint.offering_pipeline(submissions)
-    domain = osint.domain_intel(sec, cik) if deep else None
-    sanctions = osint.ofac_screen(name) if deep else None
+    domain = sanctions = None
+    if deep:
+        try:
+            domain = osint.domain_intel(sec, cik)
+        except Exception as exc:
+            log.warning("domain intel failed for %s: %s", t, exc)
+            domain = None
+        try:
+            sanctions = osint.ofac_screen(name)
+        except Exception as exc:
+            log.warning("sanctions screen failed for %s: %s", t, exc)
+            sanctions = {"status": "unavailable"}
     # cheap sync knowledge: did an 8-K land this week at all?
     from datetime import date, timedelta as _td
     cutoff7 = (date.today() - _td(days=7)).isoformat()
@@ -364,7 +396,26 @@ def _snapshot_tpl(request: Request, ticker: str):
     data["og_image_url"] = _origin(request) + f"/og/{t}.png"
     data["tg_watch_url"] = tg.watch_link([t])
     data["hot"] = _hot_tickers()
-    return templates.TemplateResponse(request, "snapshot.html", data)
+    try:
+        return templates.TemplateResponse(request, "snapshot.html", data)
+    except Exception:
+        # last-resort net: a malformed row or a template regression must
+        # never turn the report page into a bare framework 500
+        log.exception("snapshot render failed for %s", t)
+        return HTMLResponse(
+            content=(
+                "<!DOCTYPE html><html><head><meta charset=\"utf-8\">"
+                f"<title>{APP_NAME}</title></head>"
+                "<body style=\"background:#0b0e13;color:#e8ebf2;font-family:monospace;"
+                "max-width:640px;margin:80px auto;padding:0 20px;\">"
+                f"<h1>{APP_NAME}</h1>"
+                f"<p>The full report for <b>{t}</b> could not be assembled just now."
+                " One section misbehaved; everything else is unaffected.</p>"
+                "<p><a href=\"/\" style=\"color:#82a7ff;\">Try again or decode another ticker</a></p>"
+                "</body></html>"
+            ),
+            status_code=500,
+        )
 
 
 def _form_label(f: str) -> str:

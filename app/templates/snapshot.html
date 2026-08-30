@@ -216,7 +216,7 @@
   <div class="change">
     <div class="head">
       <span class="name">{{ c.label }}</span>
-      {% if c.delta_pct is not none %}
+      {% if c.get('delta_pct') is not none %}
         {% set dp = c.delta_pct %}
         {% set cls = '' %}
         {% if c.key == 'shares' %}{% set cls = 'bad' if dp > 3 else 'okv' %}{% endif %}

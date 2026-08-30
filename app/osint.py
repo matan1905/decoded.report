@@ -228,7 +228,7 @@ def _event_date(events: list, action: str):
 
 
 def domain_intel(sec, cik: int) -> dict:
-    found = find_domain(sec, cik)
+    found = find_domain(sec, cik) or {}
     domain = found.get("domain")
     out = {"domain": domain, "mentions": found.get("mentions", 0)}
     if not domain:

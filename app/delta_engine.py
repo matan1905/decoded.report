@@ -24,7 +24,7 @@ ITEM_RE = re.compile(r"Item\s+(\d+\.\d+)\s+(.*?)(?=Item\s+\d+\.\d+|SIGNATURES|CE
 def _fmt_compact(v) -> str:
     try:
         v = float(v)
-    except (TypeError, ValueError):
+    except Exception:
         return "n/a"
     if abs(v) >= 1e9:
         return f"${v/1e9:.2f}B"
@@ -311,6 +311,7 @@ class DeltaEngine:
                 ),
                 "current": self._cite(ocf, cik),
                 "prior": None,
+                "delta_pct": None,
                 "runway_months": None,
             }
         runway = cash / monthly_burn if monthly_burn > 0 else None
