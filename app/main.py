@@ -74,8 +74,13 @@ ENGINE_CACHE_TTL = 6 * 3600  # 6h
 
 @app.on_event("startup")
 def _startup():
-    db.init_db()
-    db.cache_clear_expired()
+    # Startup must never die or block on the database: a locked or slow disk
+    # should degrade the report, not stop the server from binding its port.
+    for step, fn in (("schema init", db.init_db), ("cache sweep", db.cache_clear_expired)):
+        try:
+            fn()
+        except Exception as exc:
+            log.warning("startup step '%s' failed (continuing): %s", step, exc)
     log.info("started %s v%s, price mode: %s", APP_NAME, APP_VERSION, _price_state() or "none")
     threading.Thread(target=_warmup, daemon=True).start()
 

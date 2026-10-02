@@ -1,15 +1,18 @@
+import logging
 import re
 import sqlite3
-import threading
 import time
 
 from .config import DB_PATH
 
+log = logging.getLogger(__name__)
+
 # How long a connection waits for a competing writer before raising
-# "database is locked". The web app, and any CLI pass, share one SQLite
-# file, so a bounded wait lets short writes queue instead of failing.
-BUSY_TIMEOUT_MS = 30000
-_WAL_READY = threading.Event()
+# "database is locked". Short writes queue instead of failing immediately.
+BUSY_TIMEOUT_MS = 10000
+# Switching journal mode takes a brief exclusive lock; never let that stall
+# application startup for the full busy window.
+WAL_SWITCH_TIMEOUT_MS = 2000
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS cache (
@@ -45,33 +48,47 @@ CREATE TABLE IF NOT EXISTS events (
 
 
 def get_conn():
-    """One short-lived connection per call, WAL-enabled.
+    """One short-lived connection per call.
 
-    WAL lets readers run while a writer holds the write lock, which is what
-    turned concurrent writes into spurious "database is locked" 500s under
-    the old rollback-journal mode. busy_timeout then makes any remaining
-    writer-vs-writer overlap queue instead of failing immediately.
+    get_conn only sets a bounded busy_timeout: it never changes the journal
+    mode, because that takes a lock and must never block hot request paths.
+    WAL is switched on once, best-effort, in init_db().
     """
     conn = sqlite3.connect(str(DB_PATH), timeout=BUSY_TIMEOUT_MS / 1000.0)
     conn.row_factory = sqlite3.Row
     conn.execute(f"PRAGMA busy_timeout = {BUSY_TIMEOUT_MS}")
-    if not _WAL_READY.is_set():
-        # journal_mode persists in the database file; setting it once per
-        # process is enough and avoids a write on every connection.
-        try:
-            conn.execute("PRAGMA journal_mode = WAL")
-            conn.execute("PRAGMA synchronous = NORMAL")
-            _WAL_READY.set()
-        except sqlite3.OperationalError:
-            pass
     return conn
+
+
+def _enable_wal(conn) -> bool:
+    """Best-effort switch to WAL with a short, bounded lock wait.
+
+    WAL lets readers run while a writer holds the write lock, so concurrent
+    writes stop producing spurious "database is locked" errors. If the file
+    is busy or the volume cannot do WAL, we keep the existing journal mode
+    and carry on rather than block startup.
+    """
+    try:
+        conn.execute(f"PRAGMA busy_timeout = {WAL_SWITCH_TIMEOUT_MS}")
+        cur = conn.execute("PRAGMA journal_mode = WAL")
+        mode = (cur.fetchone() or ["?"])[0]
+        conn.execute("PRAGMA synchronous = NORMAL")
+        return str(mode).lower() == "wal"
+    except sqlite3.Error as exc:
+        log.warning("could not enable WAL, keeping current journal mode: %s", exc)
+        return False
+    finally:
+        conn.execute(f"PRAGMA busy_timeout = {BUSY_TIMEOUT_MS}")
 
 
 def init_db():
     conn = get_conn()
-    conn.executescript(SCHEMA)
-    conn.commit()
-    conn.close()
+    try:
+        _enable_wal(conn)
+        conn.executescript(SCHEMA)
+        conn.commit()
+    finally:
+        conn.close()
 
 
 # ---- cache helpers (generic 24h store) ----------------------------
