@@ -25,28 +25,32 @@ TWELVEDATA_API_KEY = os.getenv("TWELVEDATA_API_KEY", "").strip()
 FINNHUB_API_KEY = os.getenv("FINNHUB_API_KEY", "").strip()
 MASSIVE_API_KEY = os.getenv("MASSIVE_API_KEY", "").strip()
 
-# Telegram notifications (free Bot API): token from @BotFather, username is
-# the bot's public handle used to build t.me deep links on report pages
-TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
-TELEGRAM_BOT_USERNAME = os.getenv("TELEGRAM_BOT_USERNAME", "").strip().lstrip("@")
-# optional shared secret for the production webhook route
-TG_WEBHOOK_SECRET = os.getenv("TG_WEBHOOK_SECRET", "").strip()
+# ---- ads (provider-agnostic) ----------------------------------------------
+# Default network is Google AdSense: set ADSENSE_CLIENT (ca-pub-...) and the
+# per-placement ad-unit slot IDs below. Any other network can be dropped in
+# per placement with AD_HTML_<PLACEMENT> raw markup, which wins over AdSense.
+# Nothing renders when all of these are empty, so dev/pre-approval is clean.
+ADSENSE_CLIENT = _env("ADSENSE_CLIENT")
+AD_SLOTS = {
+    "top": _env("AD_SLOT_TOP"),
+    "mid": _env("AD_SLOT_MID"),
+    "footer": _env("AD_SLOT_FOOTER"),
+    "sidebar": _env("AD_SLOT_SIDEBAR"),
+    "anchor": _env("AD_SLOT_ANCHOR"),
+}
+AD_RAW = {name: _env("AD_HTML_" + name.upper()) for name in AD_SLOTS}
+ADS_ENABLED = bool(ADSENSE_CLIENT) or any(AD_SLOTS.values()) or any(AD_RAW.values())
 
 # The owner console is unavailable until a password is configured.
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin").strip() or "admin"
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "").strip()
 
-# absolute origin used in bot messages, sitemap and generated links. When unset,
+# absolute origin used in the sitemap and generated links. When unset,
 # request-context code falls back to the incoming request's own origin, so a
-# local run never links off-site; background jobs (alerts) fall back to
-# DEFAULT_PUBLIC_URL.
+# local run never links off-site.
 BASE_URL = os.getenv("BASE_URL", "").strip().rstrip("/")
 DEFAULT_PUBLIC_URL = "https://decoded.report"
 
-
-def public_url(path: str = "") -> str:
-    base = BASE_URL or DEFAULT_PUBLIC_URL
-    return base + (path if path.startswith("/") else "/" + path)
 
 DATA_DIR.mkdir(exist_ok=True)
 DB_PATH = DATA_DIR / "decode.db"

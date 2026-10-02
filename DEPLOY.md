@@ -4,17 +4,16 @@
 
 Create a Docker Compose resource from this repository and set the public
 service to `web` on container port `8000`. Coolify handles the public HTTPS
-certificate and reverse proxy. Do not expose the `telegram-bot` or `alerts`
-services publicly.
+certificate and reverse proxy.
 
-The Compose file runs three services:
+The Compose file runs a single service:
 
 - `web`: FastAPI application on port 8000
-- `telegram-bot`: Telegram long poll worker
-- `alerts`: hourly filing alert worker
 
-All three services share `./data`, which keeps the SQLite database and image
-cache across container restarts and redeploys. Do not use an ephemeral volume.
+It owns `./data`, which keeps the SQLite database and image cache across
+container restarts and redeploys. Do not use an ephemeral volume. SQLite runs
+in WAL mode with a 30s busy timeout, so the app tolerates overlapping writes
+without "database is locked" errors.
 
 ## Required environment variables
 
@@ -26,40 +25,47 @@ BASE_URL=https://decoded.report
 ADMIN_USERNAME=admin
 ADMIN_PASSWORD=<long-random-password>
 MASSIVE_API_KEY=<key>
-TELEGRAM_BOT_TOKEN=<BotFather-token>
-TELEGRAM_BOT_USERNAME=<bot-username-without-at-sign>
-TG_WEBHOOK_SECRET=<long-random-secret>
 ```
 
 `TWELVEDATA_API_KEY` and `FINNHUB_API_KEY` are optional. The report remains
-useful without them. The Telegram workers intentionally restart until a bot
-token is supplied, so add the token before enabling the resource in
-production.
+useful without them.
 
-## Telegram mode
+## Ads
 
-The default Compose setup uses long polling. No webhook setup is needed.
-After deployment, verify the bot with `/start`, `/watch <any ticker you follow>`, `/list`, and
-`/unwatch ALL`.
-
-If webhook mode is preferred, stop the `telegram-bot` service and register:
+Optional. The site is live with or without an ad network, since every slot
+renders nothing until configured. For Google AdSense, set the client ID and a
+slot ID per placement:
 
 ```text
-https://decoded.report/tg/webhook/<TG_WEBHOOK_SECRET>
+ADSENSE_CLIENT=ca-pub-<publisher-id>
+AD_SLOT_TOP=<slot>
+AD_SLOT_MID=<slot>
+AD_SLOT_FOOTER=<slot>
+AD_SLOT_SIDEBAR=<slot>
+AD_SLOT_ANCHOR=<slot>
 ```
 
-The route validates both the secret path and Telegram's secret-token header.
+For any other network (Ezoic, Mediavine, a direct sponsor), override a single
+placement with raw markup instead:
+
+```text
+AD_HTML_TOP=<network snippet>
+```
+
+`/ads.txt` is generated from `ADSENSE_CLIENT`, so the authorized-seller record
+never drifts from the live units.
 
 ## First deploy checks
 
-1. Open `https://decoded.report/healthz` and confirm `ok: true`.
-2. Open `/healthz`, `/`, one company report path (`/{TICKER}`),
-   `/watchlist?t=TICKER1,TICKER2`, and `/bag-vs`.
+1. Open `https://decoded.report/healthz` and confirm `ok: true` and `ads`
+   reflects your configuration.
+2. Open `/`, one company report path (`/{TICKER}`), `/watchlist?t=TICKER1,TICKER2`,
+   and `/bag-vs`.
 3. Confirm the market-data websocket fills slots after the page loads.
 4. Open `/admin/subs` and confirm the browser prompts for Basic Auth.
-5. Confirm `/privacy` and `/terms` are reachable from the footer.
+5. Confirm `/privacy`, `/terms`, and `/ads.txt` are reachable.
 6. Visit a report and a Bag Check, then verify Recent Events in the admin console.
-7. Subscribe through Telegram and confirm the subscription appears in admin.
-8. Confirm the first alert pass seeds state without sending a notification.
+7. With ad slots configured, confirm units render below the hero, mid-report,
+   in the footer, and (on wide screens) in the rail.
 
 The local SQLite database is intentionally not included in the image or Git.

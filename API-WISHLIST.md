@@ -12,24 +12,22 @@ cover. Token-bucket limiter (5/min), cache-first (price 24h, rest 7d), and
 the websocket tells the user exactly what is loading and how long the quota
 wait is. The rest of the report never blocks on it.
 
-## DONE: Telegram notifications (free Bot API, no key vendor) - replaces email
-`app/telegram_client.py` + `app/telegram_bot.py`. Subscriptions are deep
-links: report pages carry `t.me/{bot}?start=watch_TICKER`, the user presses
-START, the bot registers the chat (poll CLI locally, webhook route in
-production). The alert pass pushes cited filings to watching chats; without
-TELEGRAM_BOT_TOKEN everything logs WOULD-NOTIFY. Free forever at this scale,
-no deliverability problem, and it is where this audience already is.
+## DONE: Ad slots (provider-agnostic) - `app/ads.py` + base.html
+Five placements (top, mid, footer, sidebar, anchor) render from config with
+zero vendor lock-in: Google AdSense via `ADSENSE_CLIENT` + `AD_SLOT_*`, or any
+other network per placement via `AD_HTML_*` raw markup. `/ads.txt` is generated
+from the AdSense client ID. Slots render nothing until configured, so the site
+ships clean with no network.
 
-## Tier 1: unlocks the actual product loop
+## Tier 1: monetization keys
 
-### 1. TELEGRAM_BOT_TOKEN + TELEGRAM_BOT_USERNAME (from @BotFather, free)
-Value given: the alert promise becomes real end to end. Today "WATCH <TICKER> ON
-TELEGRAM" shows a pending-config note and the pass logs WOULD-NOTIFY. With a
-token the bot answers /watch commands and the cron pass sends "<TICKER> just filed
-something scary" with citations. This is now the single highest-leverage
-step: it converts the funnel into the retention engine the audience asked
-for in comments ("tell me when X files").
-Where it plugs in: product/.env (already wired, token-gated).
+### 1. ADSENSE_CLIENT (Google AdSense, free to join)
+Value given: turns existing organic traffic into revenue immediately. Finance
+is a high-CPC vertical, so a modest audience still earns. Create ad units per
+placement and paste the client ID + slot IDs in .env. Once traffic grows, layer
+Ezoic on top for higher session RPM, then apply to Mediavine (50k sessions) or
+Raptive (100k pageviews).
+Where it plugs in: product/.env (already wired, no-op when unset).
 
 ## Tier 2: makes the report feel alive with market context
 
@@ -66,6 +64,5 @@ trustworthy in Discord/X posts. Cosmetic but improves share CTR.
 
 ## Current degraded modes (no keys needed to ship)
 - Price strip: hidden entirely (no fake placeholder).
-- Telegram CTA: shows an honest pending-config note; alert pass logs
-  WOULD-NOTIFY per chat.
+- Ad slots: render nothing until a network is configured.
 - Everything else: fully functional on free sources.

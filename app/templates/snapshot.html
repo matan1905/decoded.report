@@ -86,6 +86,8 @@
 </div>
 <div class="mktline" id="mkt-status"></div>
 
+{{ ad('top') }}
+
 <!-- ============ 01 RED FLAGS ============ -->
 <section class="sec" id="red-flags">
   <div class="sechead">
@@ -206,6 +208,8 @@
   {% endif %}
   <p class="cite">RUNWAY = CASH ON HAND ÷ MONTHLY CASH BURN. SIMPLE ARITHMETIC ON THE COMPANY'S OWN REPORTED NUMBERS, NOT A PROJECTION.</p>
 </section>
+
+{{ ad('mid') }}
 
 <!-- ============ 04 WHAT CHANGED ============ -->
 <section class="sec" id="what-changed">
@@ -582,18 +586,7 @@
   <p class="cite">SOURCE: THE COMPANY'S SEC FILING INDEX</p>
 </section>
 
-<!-- ============ ALERT CAPTURE ============ -->
-<section class="sec" id="save">
-  <div class="alertbox">
-    <h3>Next time {{ ticker }} files something scary, know within minutes.</h3>
-    <p class="note">One Telegram message per material filing: dilution, going concern, delisting, insider dumps. No account, no email. Every line cites its SEC source. Leave anytime with /unwatch.</p>
-    {% if tg_watch_url %}
-    <a class="btn" href="{{ tg_watch_url }}">WATCH {{ ticker }} ON TELEGRAM →</a>
-    {% else %}
-    <p class="cite">TELEGRAM ALERTS: BOT LINK PENDING CONFIG (SET TELEGRAM_BOT_TOKEN + TELEGRAM_BOT_USERNAME IN .ENV). THE FULL REPORT ABOVE NEEDS NOTHING.</p>
-    {% endif %}
-  </div>
-</section>
+{{ ad('footer') }}
 
 <section class="sec">
   <div class="sechead"><span class="no">+</span><h2>Decode Another Ticker</h2><span class="rule"></span></div>

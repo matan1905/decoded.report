@@ -70,6 +70,8 @@
 </form>
 <p class="cite" style="margin-top:10px;">UP TO 8 TICKERS PER SIDE. THE LINK RE-RUNS THE FIGHT LIVE, SO IT NEVER GOES STALE.</p>
 
+{{ ad('top') }}
+
 {% if queried %}
 <section class="sec">
   <div class="sechead"><span class="no">VS</span><h2>The Verdict</h2><span class="rule"></span><span class="aux">{{ raw_a }} vs {{ raw_b }}</span></div>
@@ -114,6 +116,8 @@
     </div>
   </div>
 </section>
+
+{{ ad('footer') }}
 
 <script type="application/json" id="share-meta">{{ {"title": og_title, "desc": og_desc, "raw_a": raw_a, "raw_b": raw_b}|tojson }}</script>
 <script>

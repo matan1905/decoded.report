@@ -8,11 +8,21 @@ services:
       - MASSIVE_API_KEY
       - TWELVEDATA_API_KEY
       - FINNHUB_API_KEY
-      - TELEGRAM_BOT_TOKEN
-      - TELEGRAM_BOT_USERNAME
-      - TG_WEBHOOK_SECRET
       - ADMIN_USERNAME
       - ADMIN_PASSWORD
+      # Ads (optional). Set ADSENSE_CLIENT + AD_SLOT_* for Google AdSense, or
+      # AD_HTML_<PLACEMENT> raw markup for any other network.
+      - ADSENSE_CLIENT
+      - AD_SLOT_TOP
+      - AD_SLOT_MID
+      - AD_SLOT_FOOTER
+      - AD_SLOT_SIDEBAR
+      - AD_SLOT_ANCHOR
+      - AD_HTML_TOP
+      - AD_HTML_MID
+      - AD_HTML_FOOTER
+      - AD_HTML_SIDEBAR
+      - AD_HTML_ANCHOR
     # No host port mapping: Coolify's proxy reaches the container directly
     # through the "Port Exposes" value (8000). Publishing a host port would
     # collide with whatever else runs on the box.
@@ -23,36 +33,3 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-
-  telegram-bot:
-    build: .
-    restart: unless-stopped
-    environment:
-      - SEC_USER_AGENT
-      - BASE_URL
-      - MASSIVE_API_KEY
-      - TELEGRAM_BOT_TOKEN
-      - TELEGRAM_BOT_USERNAME
-      - TG_WEBHOOK_SECRET
-    command: ["python", "-m", "app.telegram_bot", "--poll"]
-    volumes:
-      - ./data:/app/data
-    depends_on:
-      web:
-        condition: service_healthy
-
-  alerts:
-    build: .
-    restart: unless-stopped
-    environment:
-      - SEC_USER_AGENT
-      - BASE_URL
-      - MASSIVE_API_KEY
-      - TELEGRAM_BOT_TOKEN
-      - TELEGRAM_BOT_USERNAME
-    command: ["python", "-m", "app.alerts", "--loop", "3600"]
-    volumes:
-      - ./data:/app/data
-    depends_on:
-      web:
-        condition: service_healthy

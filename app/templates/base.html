@@ -7,6 +7,9 @@
 <meta property="og:type" content="website">
 {% block og %}{% endblock %}
 <title>{% block title %}{{ app_name }}{% endblock %}</title>
+{% if adsense_client %}
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client={{ adsense_client }}" crossorigin="anonymous"></script>
+{% endif %}
 <style>
 :root {
   --bg:#0b0e13; --panel:#10141c; --panel2:#0d1119; --line:#212836; --line2:#2b3446;
@@ -262,6 +265,27 @@ footer.site p { margin:4px 0; }
 .wlstory { margin:6px 0 0; font-size:13.5px; color:var(--ink); max-width:640px; }
 .wlgo { align-self:center; }
 
+/* ---- ad slots ---- */
+.adslot { border:1px solid var(--line); border-radius:4px; background:var(--panel);
+  margin:22px 0; padding:10px; min-height:90px; overflow:hidden; }
+.adslot .adtag { display:block; font-family:var(--mono); font-size:9px; letter-spacing:.28em;
+  color:var(--dim); margin-bottom:6px; text-align:center; }
+.adslot ins { min-height:60px; }
+.adrail { display:none; }
+.adanchor { display:none; position:fixed; left:0; right:0; bottom:0; z-index:60;
+  justify-content:center; background:rgba(11,14,19,.97); border-top:1px solid var(--line2);
+  padding:6px 38px 6px 10px; }
+.adanchor.open { display:flex; }
+.adanchor .adslot { margin:0; min-height:50px; max-width:728px; width:100%; padding:4px 8px; }
+.adanchor .adclose { position:absolute; right:10px; top:8px; background:none; border:0;
+  color:var(--mut); font-family:var(--mono); font-size:16px; line-height:1; cursor:pointer; }
+body.has-anchor { padding-bottom:74px; }
+@media (min-width:1340px) {
+  .adrail { display:block; position:fixed; top:96px; width:160px;
+    left:calc(50% + 480px + 24px); }
+  .adrail .adslot { min-height:600px; margin:0 0 16px; }
+}
+
 @media (max-width:640px) {
   .hero { gap:14px; }
   .stamp { transform:rotate(0); width:100%; }
@@ -291,7 +315,8 @@ footer.site p { margin:4px 0; }
   .stamp, .wlstamp { transform:none; background:#fff !important; box-shadow:none; break-inside:avoid; }
   /* interactive/streaming furniture never belongs on paper */
   .anchorbar, .mktline, .spinner, .inline-form, .btn,
-  #save, #yourslice form, #slice-out, .recent-decodes { display:none !important; }
+  #save, #yourslice form, #slice-out, .recent-decodes,
+  .adslot, .adrail, .adanchor { display:none !important; }
   #insider-slot .stats:empty, #insider-slot .spinner { display:none; }
   .sec { margin-top:26px; }
   .chartbox, .flag, .change, .stats, .runwaywrap { break-inside:avoid; box-shadow:none; }
@@ -330,7 +355,7 @@ footer.site p { margin:4px 0; }
 })();
 </script>
 </head>
-<body>
+<body{% if ad_configured('anchor') %} class="has-anchor"{% endif %}>
 <div class="wrap">
 <div class="mast">
   <a class="brand" href="/">decoded<b>.</b>report</a>
@@ -344,5 +369,13 @@ footer.site p { margin:4px 0; }
   <p>v{{ app_version }} · <a href="/privacy">privacy</a> · <a href="/terms">terms</a> · <a href="mailto:contact@decoded.report">contact@decoded.report</a> · decoded.report</p>
 </footer>
 </div>
+{% if ad_configured('sidebar') %}<aside class="adrail">{{ ad('sidebar') }}</aside>{% endif %}
+{% if ad_configured('anchor') %}
+<div class="adanchor open" id="ad-anchor">
+  <button class="adclose" type="button" aria-label="Close advertisement"
+    onclick="this.parentElement.remove();document.body.classList.remove('has-anchor');">&times;</button>
+  {{ ad('anchor') }}
+</div>
+{% endif %}
 </body>
 </html>

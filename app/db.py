@@ -1,9 +1,15 @@
-import json
 import re
 import sqlite3
+import threading
 import time
 
 from .config import DB_PATH
+
+# How long a connection waits for a competing writer before raising
+# "database is locked". The web app, and any CLI pass, share one SQLite
+# file, so a bounded wait lets short writes queue instead of failing.
+BUSY_TIMEOUT_MS = 30000
+_WAL_READY = threading.Event()
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS cache (
@@ -35,49 +41,35 @@ CREATE TABLE IF NOT EXISTS events (
   captured INTEGER NOT NULL DEFAULT 0,
   created_at REAL NOT NULL
 );
-CREATE TABLE IF NOT EXISTS alert_state (
-  ticker TEXT PRIMARY KEY,
-  sig TEXT,
-  shares_val TEXT,
-  checked_at REAL,
-  alerted_at REAL,
-  note TEXT,
-  flags TEXT,
-  material_accn TEXT
-);
-CREATE TABLE IF NOT EXISTS tg_subs (
-  chat_id TEXT NOT NULL,
-  ticker TEXT NOT NULL,
-  source TEXT,
-  utm_source TEXT,
-  created_at REAL NOT NULL,
-  PRIMARY KEY (chat_id, ticker)
-);
-CREATE TABLE IF NOT EXISTS notify_log (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  chat_id TEXT NOT NULL,
-  ticker TEXT,
-  kind TEXT,
-  sent INTEGER NOT NULL DEFAULT 0,
-  created_at REAL NOT NULL
-);
 """
 
 
 def get_conn():
-    conn = sqlite3.connect(str(DB_PATH))
+    """One short-lived connection per call, WAL-enabled.
+
+    WAL lets readers run while a writer holds the write lock, which is what
+    turned concurrent writes into spurious "database is locked" 500s under
+    the old rollback-journal mode. busy_timeout then makes any remaining
+    writer-vs-writer overlap queue instead of failing immediately.
+    """
+    conn = sqlite3.connect(str(DB_PATH), timeout=BUSY_TIMEOUT_MS / 1000.0)
     conn.row_factory = sqlite3.Row
+    conn.execute(f"PRAGMA busy_timeout = {BUSY_TIMEOUT_MS}")
+    if not _WAL_READY.is_set():
+        # journal_mode persists in the database file; setting it once per
+        # process is enough and avoids a write on every connection.
+        try:
+            conn.execute("PRAGMA journal_mode = WAL")
+            conn.execute("PRAGMA synchronous = NORMAL")
+            _WAL_READY.set()
+        except sqlite3.OperationalError:
+            pass
     return conn
 
 
 def init_db():
     conn = get_conn()
     conn.executescript(SCHEMA)
-    # light migrations for databases created before a column existed
-    cols = {r["name"] for r in conn.execute("PRAGMA table_info(alert_state)").fetchall()}
-    for new_col, ddl in (("flags", "TEXT"), ("material_accn", "TEXT")):
-        if new_col not in cols:
-            conn.execute(f"ALTER TABLE alert_state ADD COLUMN {new_col} {ddl}")
     conn.commit()
     conn.close()
 
@@ -193,170 +185,6 @@ def demand_stats(days: int = 7) -> dict:
     out["leads_total"] = row["c"]
     conn.close()
     return out
-
-
-# ---- telegram subscriptions ---------------------------------------------
-
-def sub_add(chat_id: str, tickers: list, source=None, utm=None) -> list:
-    """Register one chat for one or more tickers. Returns the tickers that
-    were newly added (already-watched ones are not re-added)."""
-    now = time.time()
-    added = []
-    conn = get_conn()
-    for t in tickers:
-        cur = conn.execute(
-            "INSERT OR IGNORE INTO tg_subs (chat_id, ticker, source, utm_source, created_at) "
-            "VALUES (?, ?, ?, ?, ?)",
-            (str(chat_id), t, source, utm, now),
-        )
-        if cur.rowcount:
-            added.append(t)
-    conn.commit()
-    conn.close()
-    return added
-
-
-def sub_remove(chat_id: str, tickers: list = None) -> int:
-    """Unwatch: the given tickers, or everything for that chat when None."""
-    conn = get_conn()
-    if tickers:
-        cur = conn.execute(
-            "DELETE FROM tg_subs WHERE chat_id = ? AND ticker IN "
-            "(%s)" % ",".join("?" * len(tickers)),
-            [str(chat_id)] + list(tickers),
-        )
-    else:
-        cur = conn.execute("DELETE FROM tg_subs WHERE chat_id = ?", (str(chat_id),))
-    n = cur.rowcount
-    conn.commit()
-    conn.close()
-    return n
-
-
-def subs_for_chat(chat_id: str) -> list:
-    conn = get_conn()
-    rows = conn.execute(
-        "SELECT ticker FROM tg_subs WHERE chat_id = ? ORDER BY created_at",
-        (str(chat_id),),
-    ).fetchall()
-    conn.close()
-    return [r["ticker"] for r in rows]
-
-
-def chats_for_ticker(ticker: str) -> list:
-    conn = get_conn()
-    rows = conn.execute(
-        "SELECT DISTINCT chat_id FROM tg_subs WHERE ticker = ?", (ticker,)
-    ).fetchall()
-    conn.close()
-    return [r["chat_id"] for r in rows]
-
-
-def watched_tickers() -> list:
-    """Distinct saved tickers with how many chats watch each, busiest first."""
-    conn = get_conn()
-    rows = conn.execute(
-        "SELECT ticker, COUNT(DISTINCT chat_id) AS watchers FROM tg_subs "
-        "GROUP BY ticker ORDER BY watchers DESC, MAX(created_at) DESC",
-    ).fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
-
-
-def sub_count() -> int:
-    conn = get_conn()
-    row = conn.execute("SELECT COUNT(DISTINCT chat_id) AS c FROM tg_subs").fetchone()
-    conn.close()
-    return row["c"]
-
-
-def sub_rows_total() -> int:
-    conn = get_conn()
-    row = conn.execute("SELECT COUNT(*) AS c FROM tg_subs").fetchone()
-    conn.close()
-    return row["c"]
-
-
-def recent_subs(limit: int = 20) -> list:
-    conn = get_conn()
-    rows = conn.execute(
-        "SELECT chat_id, ticker, utm_source, created_at FROM tg_subs "
-        "ORDER BY created_at DESC LIMIT ?",
-        (limit,),
-    ).fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
-
-
-def log_notify(chat_id: str, ticker: str, kind: str, sent: int):
-    conn = get_conn()
-    conn.execute(
-        "INSERT INTO notify_log (chat_id, ticker, kind, sent, created_at) VALUES (?, ?, ?, ?, ?)",
-        (str(chat_id), ticker, kind, int(sent), time.time()),
-    )
-    conn.commit()
-    conn.close()
-
-
-def recent_notify_logs(limit: int = 20) -> list:
-    conn = get_conn()
-    rows = conn.execute(
-        "SELECT chat_id, ticker, kind, sent, created_at FROM notify_log "
-        "ORDER BY id DESC LIMIT ?",
-        (limit,),
-    ).fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
-
-
-def notify_sent_7d() -> int:
-    since = time.time() - 7 * 86400
-    conn = get_conn()
-    row = conn.execute(
-        "SELECT COUNT(*) AS c FROM notify_log WHERE created_at > ? AND sent = 1",
-        (since,),
-    ).fetchone()
-    conn.close()
-    return row["c"]
-
-
-def alert_state_get(ticker: str):
-    conn = get_conn()
-    row = conn.execute(
-        "SELECT * FROM alert_state WHERE ticker = ?", (ticker,)
-    ).fetchone()
-    conn.close()
-    return dict(row) if row else None
-
-
-def alert_states() -> list:
-    conn = get_conn()
-    rows = conn.execute(
-        "SELECT * FROM alert_state ORDER BY checked_at DESC"
-    ).fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
-
-
-def alert_state_put(ticker: str, sig: str, shares_val=None, alerted_at=None,
-                    note=None, flags=None, material_accn=None):
-    now = time.time()
-    conn = get_conn()
-    prior = conn.execute(
-        "SELECT alerted_at FROM alert_state WHERE ticker = ?", (ticker,)
-    ).fetchone()
-    keep_alerted = alerted_at if alerted_at is not None else (
-        prior["alerted_at"] if prior else None
-    )
-    conn.execute(
-        "INSERT OR REPLACE INTO alert_state "
-        "(ticker, sig, shares_val, checked_at, alerted_at, note, flags, material_accn) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        (ticker, sig, shares_val, now, keep_alerted, note,
-         json.dumps(flags) if flags is not None else None, material_accn),
-    )
-    conn.commit()
-    conn.close()
 
 
 # ---- related tickers (co-occurrence from real demand events) -----------------

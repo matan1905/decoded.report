@@ -29,6 +29,8 @@
 <p class="cite" style="margin-top:10px;">UP TO 8 TICKERS, COMMA-SEPARATED. EACH FULL REPORT IS ONE CLICK AWAY.
 {% if queried %} · <button class="linklike" onclick="return shareLineup(this)">SHARE THIS LINEUP</button>{% endif %}</p>
 
+{{ ad('top') }}
+
 {% if queried %}
 <section class="sec">
   <div class="sechead"><span class="no">Σ</span><h2>The Lineup</h2><span class="rule"></span><span class="aux">{{ results|length }} CASE FILES</span></div>
@@ -73,15 +75,7 @@
     </form>
   </div>
 
-  <div class="alertbox">
-    <h3>One Telegram message when any of these files something material.</h3>
-    <p class="note">The whole bag, watched in one place: dilution, going concern, delisting notices, insider dumps. No account, no email. Every line cites its SEC source. /unwatch to stop.</p>
-    {% if tg_watch_url %}
-    <a class="btn" href="{{ tg_watch_url }}">WATCH THE WHOLE BAG ON TELEGRAM →</a>
-    {% else %}
-    <p class="cite">TELEGRAM ALERTS: BOT LINK PENDING CONFIG. THE RANKING ABOVE NEEDS NOTHING.</p>
-    {% endif %}
-  </div>
+  {{ ad('footer') }}
 
   <p class="cite">RANKED BY RISK INDEX, WORST FIRST. EVERY ROW LINKS TO THE FULL CITED REPORT.</p>
 </section>

@@ -9,15 +9,15 @@ from urllib.parse import parse_qs, urlparse
 
 from fastapi import Depends, FastAPI, Form, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
-from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse, Response
+from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 
+from . import ads
 from . import db
 from .config import APP_NAME, APP_VERSION, BASE_DIR, SEC_USER_AGENT
 from .config import ADMIN_PASSWORD, ADMIN_USERNAME, DEFAULT_PUBLIC_URL, BASE_URL as CONFIG_BASE_URL
 from .delta_engine import DeltaEngine, _fmt_compact
 from . import osint
-from . import telegram_client as tg
 from .price_client import get_price
 from .risk import compute_risk
 from .sec_client import SecClient
@@ -55,6 +55,13 @@ def _timestamp_ago(v):
 templates.env.filters["fmt_int"] = _fmt_int
 templates.env.filters["fmt_compact"] = _fmt_compact
 templates.env.filters["timestamp_ago"] = _timestamp_ago
+
+# ad slots are exposed to every template: {{ ad('top') }} renders the unit
+# (or nothing) and ad_configured() gates the layout furniture (rail, anchor)
+templates.env.globals["ad"] = ads.render
+templates.env.globals["ad_configured"] = ads.configured
+templates.env.globals["ads_enabled"] = ads.enabled()
+templates.env.globals["adsense_client"] = ads.client()
 
 sec = SecClient()
 delta_engine = DeltaEngine(sec)
@@ -382,7 +389,7 @@ def _snapshot_tpl(request: Request, ticker: str):
         db.log_event("notfound", ticker=t, utm=utm)
         return templates.TemplateResponse(
             request, "notfound.html", {"app_name": APP_NAME, "app_version": APP_VERSION, "ticker": t,
-                                       "page_url": _base_url(request), "tg_watch_url": tg.watch_link([t]),
+                                       "page_url": _base_url(request),
                                        "hot": _hot_tickers()},
             status_code=404,
         )
@@ -394,7 +401,6 @@ def _snapshot_tpl(request: Request, ticker: str):
     data["share_url"] = _base_url(request) + "?utm_source=share"
     data["page_url"] = _base_url(request)
     data["og_image_url"] = _origin(request) + f"/og/{t}.png"
-    data["tg_watch_url"] = tg.watch_link([t])
     data["hot"] = _hot_tickers()
     try:
         return templates.TemplateResponse(request, "snapshot.html", data)
@@ -442,37 +448,14 @@ def _identity(submissions: dict) -> dict:
     }
 
 
-# ---- telegram: production webhook ---------------------------------------------
-
-@app.post("/tg/webhook/{secret}")
-async def tg_webhook(secret: str, request: Request):
-    """Production update intake (Telegram delivers updates here when the
-    bot is in webhook mode; local dev uses the --poll CLI instead). The
-    path secret must match TG_WEBHOOK_SECRET, mirroring Telegram's own
-    X-Telegram-Bot-Api-Secret-Token header check."""
-    from .config import TG_WEBHOOK_SECRET
-    from .telegram_bot import Bot
-    header = request.headers.get("x-telegram-bot-api-secret-token", "")
-    if not TG_WEBHOOK_SECRET or secret != TG_WEBHOOK_SECRET or \
-            (header and header != TG_WEBHOOK_SECRET):
-        return JSONResponse({"ok": False}, status_code=403)
-    try:
-        update = await request.json()
-    except Exception:
-        return JSONResponse({"ok": True})
-    # answer Telegram immediately; processing is quick but never block delivery
-    from starlette.concurrency import run_in_threadpool
-    await run_in_threadpool(Bot().handle_update, update)
-    return JSONResponse({"ok": True})
-
-
 # ---- admin / health ------------------------------------------------------------
 
 @app.get("/healthz")
 def healthz():
-    return {"ok": True, "version": APP_VERSION, "subs_count": db.sub_count(),
-            "watched": db.sub_rows_total(), "price_mode": _price_state(),
-            "tg_bot": bool(tg.bot_username()), "tg_token": tg.available()}# ---- market-data websocket (rate-limited Massive slots) ------------------------
+    return {"ok": True, "version": APP_VERSION, "price_mode": _price_state(),
+            "ads": ads.enabled()}
+
+# ---- market-data websocket (rate-limited Massive slots) ------------------------
 
 @app.websocket("/ws/market")
 async def ws_market(websocket: WebSocket):
@@ -620,14 +603,8 @@ def admin_subs(request: Request, _admin: str = Depends(require_admin)):
         request, "admin.html",
         {
             "app_name": APP_NAME, "app_version": APP_VERSION,
-            "count": db.sub_count(), "subs_total": db.sub_rows_total(),
-            "subs": db.recent_subs(20),
             "stats": db.demand_stats(7), "hot": db.recent_searched(12, days=30),
             "events": db.recent_events(40, days=30),
-            "alert_states": db.alert_states(), "notify_logs": db.recent_notify_logs(15),
-            "notify_sent_7d": db.notify_sent_7d(),
-            "watched_count": len(db.watched_tickers()),
-            "tg_ready": tg.available(), "tg_bot": tg.bot_username(),
         },
     )
 
@@ -856,6 +833,16 @@ def _ticker_summary(ticker: str) -> dict:
         return {"ticker": t, "name": name, "error": True}
 
 
+@app.get("/ads.txt", response_class=PlainTextResponse)
+def ads_txt():
+    """Authorized-seller record for the configured network, kept in sync with
+    the live ad units instead of being a hand-edited static file."""
+    if not ads.client():
+        return ""
+    pub = ads.client().replace("ca-", "")
+    return f"google.com, {pub}, DIRECT, f08c47fec0942fa0\n"
+
+
 @app.get("/robots.txt", response_class=PlainTextResponse)
 def robots_txt(request: Request):
     base = _origin(request)
@@ -909,7 +896,6 @@ def _watchlist_tpl(request: Request, raw: str):
         "request": request, "app_name": APP_NAME, "app_version": APP_VERSION,
         "tickers_raw": ",".join(wanted), "results": results, "queried": bool(wanted),
         "page_url": _base_url(request),
-        "tg_watch_url": tg.watch_link(wanted),
         "og_title": (
             ("Bag check: " + ",".join(wanted)) if wanted else "The Bag Check"
         ),
