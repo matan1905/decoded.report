@@ -1,0 +1,79 @@
+{% extends "guides_base.html" %}
+{% block guide_body %}
+
+<p>
+Every time a company officer, director or large shareholder trades the company's stock, the public
+finds out within two business days. That is fast, and it is why insider filings are watched so
+closely. The catch is that most of those filings are not trades in any meaningful sense. They are
+grants, vestings and tax withholdings dressed up as transactions. Reading the codes is what separates
+signal from paperwork.
+</p>
+
+<h2>The forms and the clock</h2>
+<p>
+Insiders file three forms with the SEC. Form 3 is the initial statement of ownership, due within ten
+days of becoming an officer, director or holder of more than ten percent of a class. Form 4 reports
+changes in ownership and is due within two business days of the transaction. Form 5 is an annual
+catch-up for certain exempt transactions, due within forty-five days after the fiscal year ends. Form
+4 is the timely one and the one people mean when they say "insider filing."
+</p>
+
+<h2>Transaction codes: the letters that matter</h2>
+<p>
+Each line on a Form 4 carries a one-letter code describing the nature of the transaction. The SEC's
+own investor bulletin lists the common ones. Here is what they actually tell you.
+</p>
+<ul class="guide-list">
+  <li><b>A: grant or award.</b> The insider received shares or options from the company as compensation. Not a purchase. Not a bullish signal by itself.</li>
+  <li><b>P: open-market or private purchase.</b> The insider spent their own money to buy. This is the code people care about, because it is the strongest evidence that an insider sees value at the current price.</li>
+  <li><b>S: open-market or private sale.</b> The insider sold. It matters, but context decides: planned diversification, taxes and estate planning all show up as S.</li>
+  <li><b>M: exercise or conversion of a derivative.</b> The insider exercised options or converted a security. Usually compensation mechanics, not a market purchase.</li>
+  <li><b>F: shares withheld for tax or exercise price.</b> Often misread as a sale. It is the company withholding shares to cover taxes or the cost of an exercise, and it is mechanical. Do not treat F like S.</li>
+  <li><b>D: disposition to the issuer.</b> Shares sold or transferred back to the company, not to the market.</li>
+  <li><b>G: gift.</b> A transfer without consideration. Reportable, usually not directional.</li>
+  <li><b>K: equity swap or hedging transaction.</b> Derivative positions. Worth a look when it appears.</li>
+  <li><b>J: other.</b> A catch-all with a footnote explaining it. Read the footnote.</li>
+  <li><b>V: voluntary early report.</b> Something reportable on Form 5 that the insider chose to report early.</li>
+</ul>
+<p>
+Two traps. First, the code is not the same as the acquired/disposed flag sitting in a different
+column, and neither is the same as the direct/indirect ownership flag. Copy the whole row, not the
+letter. Second, a code A grant followed by a code F withholding can leave the insider owning more
+shares than before while the headline screams "disposed." Read the net.
+</p>
+
+<h2>When selling actually matters</h2>
+<ul class="guide-list">
+  <li><b>Cluster selling.</b> Several insiders selling in the same window is more meaningful than one.</li>
+  <li><b>Large sales relative to the insider's holdings.</b> A director selling most of their position is different from selling a slice.</li>
+  <li><b>Sales with no pre-arranged plan.</b> Many outsiders sell under a Rule 10b5-1 plan, a pre-set schedule adopted in advance to avoid any appearance of trading on inside information. Sales under a plan are less informative about current sentiment, because the decision was made earlier.</li>
+  <li><b>Sales into a rally.</b> Dumping into strength reads differently than selling into weakness.</li>
+</ul>
+
+<h2>When buying actually matters</h2>
+<p>
+Open-market purchases (code P) are rarer than sales. Insiders have many reasons to sell and few to
+buy more, so a genuine P buy, especially a large one by a senior officer, is a stronger signal than
+any sale is a warning. Even then, a purchase is a research lead, not a conclusion. It tells you what
+one person did with their own money on one day.
+</p>
+
+<h2>How to read a Form 4 in a minute</h2>
+<ol class="guide-list">
+  <li>Read the transaction codes on every line. Ignore A, M, F and G lines for the signal.</li>
+  <li>For a P or S line, note the number of shares, the price, and the ownership after the trade.</li>
+  <li>Check the footnote for a 10b5-1 plan reference.</li>
+  <li>Compare the filing date to the transaction date. Late filings are their own small flag.</li>
+</ol>
+<p>
+The <a href="/">report</a> summarizes the insider activity as a net flow over time, which filters out
+grants and tax withholdings so the chart reflects real market intent.
+</p>
+
+<p class="cite">
+SOURCES: SEC Office of Investor Education and Advocacy, "Insider Transactions and Forms 3, 4, and 5"
+(investor.gov, sec.gov); the Form 4 transaction code list from the General Instructions to Form 4;
+Rule 10b5-1 trading plans.
+</p>
+
+{% endblock %}

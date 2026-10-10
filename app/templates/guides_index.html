@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block ads_head %}{% include "_ads_head.html" %}{% endblock %}
+{% block title %}Guides: reading SEC filings without the noise | {{ app_name }}{% endblock %}
+{% block meta %}<meta name="description" content="Plain-English guides to dilution, going concern, 8-Ks, reverse splits, shelf offerings, cash runway and insider Form 4s. Learn the mechanics behind the numbers.">{% endblock %}
+{% block og %}<link rel="canonical" href="{{ page_url }}">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Guides: reading SEC filings without the noise">
+<meta property="og:description" content="Plain-English guides to the mechanics behind the numbers in an SEC filing.">
+<meta property="og:url" content="{{ page_url }}">{% endblock %}
+{% block content %}
+
+<section class="land-hero" style="padding:40px 0 4px;">
+  <div class="kicker">THE GUIDE LIBRARY</div>
+  <h1 style="font-size:clamp(28px,4vw,40px);">Read the filing yourself, and know what you are looking at.</h1>
+  <p class="note" style="max-width:720px;font-size:15px;">
+    The reports turn a company's own filings into a risk index. These guides go one layer down
+    into the mechanics: how dilution actually happens, what a going concern warning is really
+    saying, which 8-K items matter, and how to run the same routine on any ticker in ten minutes.
+    Written to be read once and used forever. Every guide cites public documents and named sources,
+    and none of it is investment advice.
+  </p>
+</section>
+
+{{ ad('top') }}
+
+<section class="sec">
+  <div class="sechead"><span class="no">§</span><h2>All Guides</h2><span class="rule"></span><span class="aux">{{ guides|length }} ARTICLES</span></div>
+  <div class="guidegrid">
+    {% for g in guides %}
+    <a class="guidecard" href="/guides/{{ g.slug }}">
+      <span class="gc-min">{{ g.minutes }} MIN READ</span>
+      <span class="gc-title">{{ g.title }}</span>
+      <span class="gc-desc">{{ g.description }}</span>
+      <span class="gc-tags">{% for t in g.tags %}<i>{{ t }}</i>{% endfor %}</span>
+    </a>
+    {% endfor %}
+  </div>
+</section>
+
+{{ ad('footer') }}
+
+<section class="sec">
+  <div class="sechead"><span class="no">?</span><h2>How The Tool Fits</h2><span class="rule"></span></div>
+  <p class="sub">Guides teach the mechanics. The <a href="/">report</a> applies them to one company at a time, citing each number back to the SEC document it came from. Read <a href="/methodology">how the risk index is built</a>, or see <a href="/about">who runs this and why</a>.</p>
+</section>
+
+{% endblock %}

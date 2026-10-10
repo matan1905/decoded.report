@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block ads_head %}{% include "_ads_head.html" %}{% endblock %}
+{% block title %}Methodology: how the risk index is built | {{ app_name }}{% endblock %}
+{% block meta %}<meta name="description" content="The data sources, the exact scoring rules and the limits behind the decoded.report risk index. Deterministic, cited, and nothing is a forecast.">{% endblock %}
+{% block og %}<link rel="canonical" href="{{ page_url }}">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Methodology: how the risk index is built">
+<meta property="og:description" content="The data sources, the exact scoring rules and the limits behind the risk index.">
+<meta property="og:url" content="{{ page_url }}">{% endblock %}
+{% block content %}
+
+<section class="land-hero" style="padding:40px 0 4px;">
+  <div class="kicker">METHODOLOGY</div>
+  <h1 style="font-size:clamp(28px,4vw,40px);">A number is only useful if you can see how it was made.</h1>
+  <p class="note" style="max-width:720px;font-size:15px;">
+    This page describes the sources behind every report, the exact rules that turn those sources
+    into a 0 to 100 risk index, and the limits of the whole thing. It is written so that a reader can
+    disagree with a score and know precisely which input they are disagreeing with.
+  </p>
+</section>
+
+{{ ad('top') }}
+
+<section class="sec">
+  <div class="sechead"><span class="no">01</span><h2>Data Sources</h2><span class="rule"></span></div>
+  <ul class="guide-list">
+    <li><b>SEC EDGAR.</b> The primary source. Company submissions, financial statement data (XBRL company facts), annual and quarterly reports, current reports on Form 8-K, registration statements, and insider Forms 3, 4 and 5.</li>
+    <li><b>US Treasury OFAC.</b> The sanctions list, screened against company names.</li>
+    <li><b>Public registry and naming records.</b> RDAP lookups, archived WHOIS history, and certificate transparency logs for the domains attached to an issuer.</li>
+    <li><b>GLEIF.</b> The Global Legal Entity Identifier registry, for legal identity and corporate relationships.</li>
+    <li><b>Market data.</b> A third-party provider supplies last close, confirmed splits, public float and short interest. Price data is used for context only and never feeds the risk score.</li>
+  </ul>
+</section>
+
+<section class="sec">
+  <div class="sechead"><span class="no">02</span><h2>The Risk Index</h2><span class="rule"></span></div>
+  <p class="sub">
+    The score is the sum of six independent components, each computed from the filings with fixed
+    thresholds. Same inputs, same score, for everyone. It is a screening heuristic, not a forecast.
+  </p>
+  <div class="stats">
+    <div class="stat"><div class="n">Red flags</div><div class="s">Weighted counts of danger phrases in the last 12 months of filings (going concern, ATM, reverse split, delisting), each capped.</div></div>
+    <div class="stat"><div class="n">Dilution</div><div class="s">Trailing 12-month change in shares outstanding: +50% scores 20, +25% scores 14, +10% scores 8, +3% scores 4.</div></div>
+    <div class="stat"><div class="n">Runway</div><div class="s">Months of cash at the current burn: under 6 scores 14, under 12 scores 8, under 24 scores 3.</div></div>
+    <div class="stat"><div class="n">Cash drain</div><div class="s">A 30% or larger year-over-year fall in cash on hand scores 5.</div></div>
+    <div class="stat"><div class="n">Chronic pattern</div><div class="s">Flags that have appeared for years rather than this cycle add 2 each, capped at 6.</div></div>
+    <div class="stat"><div class="n">Official notices</div><div class="s">Critical-item 8-Ks in the trailing 12 months (bankruptcy, delisting, non-reliance) score up to 15.</div></div>
+  </div>
+  <p class="sub" style="margin-top:16px;">
+    Component totals are summed and capped at 100. Bands: <b>quiet</b> 0 to 24, <b>guarded</b> 25 to 44,
+    <b>elevated</b> 45 to 64, <b>severe</b> 65 to 100.
+  </p>
+</section>
+
+<section class="sec">
+  <div class="sechead"><span class="no">03</span><h2>How Red Flags Are Counted</h2><span class="rule"></span></div>
+  <p class="sub">
+    A phrase scan alone produces false positives, because words like "going concern" appear in
+    boilerplate and in descriptions of other companies. Where the documents are available, the report
+    opens the linked filing and filters obvious boilerplate before counting, and shows both the
+    verified count and the raw full-text count so the difference is visible. When verification is not
+    available, the raw count is used and labeled as such.
+  </p>
+</section>
+
+<section class="sec">
+  <div class="sechead"><span class="no">04</span><h2>Update Cadence</h2><span class="rule"></span></div>
+  <p class="sub">
+    Filings are fetched from EDGAR as they are requested and cached for up to 24 hours. Derived
+    reports (the delta, the verdict) are cached for about six hours. When a company files something
+    new, the cache for that company refreshes on the next request. Market data slots refresh on their
+    own schedule, governed by the provider's rate limits, and the report tells you when a slot is
+    waiting on a quota rather than inventing a number.
+  </p>
+</section>
+
+<section class="sec">
+  <div class="sechead"><span class="no">05</span><h2>Limits</h2><span class="rule"></span></div>
+  <ul class="guide-list">
+    <li><b>It reads documents, not intentions.</b> The score describes what a company reported and what it has done. It says nothing about where the price goes.</li>
+    <li><b>It can be incomplete.</b> Some issuers file irregularly or in formats that are harder to parse. Missing data is shown as unavailable, never as a clean result.</li>
+    <li><b>It is not advice.</b> Nothing here is a recommendation to buy, sell or hold any security. Scores are a starting point for your own work against the cited filings.</li>
+    <li><b>It can be wrong.</b> A parsing error or a stale cache can produce a bad number. When you find one, we fix it.</li>
+  </ul>
+</section>
+
+<section class="sec">
+  <div class="sechead"><span class="no">06</span><h2>Corrections</h2><span class="rule"></span></div>
+  <p class="sub">
+    If a report misstates something from a filing, email <a href="mailto:contact@decoded.report">contact@decoded.report</a>
+    with the ticker and the specific line. Corrections are made against the source document. See also
+    <a href="/about">About</a> for the editorial standards behind the tool.
+  </p>
+</section>
+
+{{ ad('footer') }}
+
+<p class="cite" style="margin-top:26px;">DETERMINISTIC SCREENING OVER PUBLIC FILINGS. NOT INVESTMENT ADVICE. NOT A FORECAST OF PRICE OR PERFORMANCE.</p>
+
+{% endblock %}

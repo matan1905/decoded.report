@@ -1,0 +1,87 @@
+{% extends "guides_base.html" %}
+{% block guide_body %}
+
+<p>
+A reverse split is the one corporate action that confuses almost everyone the first time. Your share
+count drops, the price jumps, and the total value of your position does not change. It feels like
+nothing happened. In practice it is often the most important signal on the page, because of why a
+company does it and what usually comes next.
+</p>
+
+<h2>The mechanics, without the noise</h2>
+<p>
+In a 1-for-20 reverse split, every twenty shares you own become one. The share count of the whole
+company divides by twenty, the price multiplies by twenty, and the total market value is unchanged.
+Your percentage ownership is unchanged. This is the opposite of a stock split, where the company
+hands you more shares at a lower price and again nothing about your slice of the company changes.
+Neither one, by itself, dilutes you or enriches you.
+</p>
+<p>
+The only place value can actually leak out is fractional shares. If the ratio does not divide your
+holding evenly, the company or its agent cashes out the remainder, usually at the market price.
+Careless positions can lose a few cents to that round-down, but it is a rounding issue, not a
+strategy.
+</p>
+
+<h2>Why companies do it</h2>
+<p>
+Almost always for a mathematical reason, not a marketing one.
+</p>
+<ul class="guide-list">
+  <li><b>To regain listing compliance.</b> Exchanges such as Nasdaq and the NYSE require a minimum bid price, commonly $1.00, to stay listed. When a stock trades below it for long enough, the company gets a deficiency notice, and a reverse split is one recognized way to cure it.</li>
+  <li><b>To meet a minimum equity or price test.</b> Some listing standards are written as a price or per-share equity threshold. A reverse split mechanically satisfies them.</li>
+  <li><b>To make the shares easier to hold institutionally.</b> Some funds will not hold a stock under a certain price. This is the stated rationale sometimes. It is rarely the real reason.</li>
+</ul>
+<p>
+Notice what is missing from that list: creating value. A reverse split does not make a company
+healthier. It changes the number of pieces, not the size of the pie.
+</p>
+
+<h2>Why it is usually a warning</h2>
+<p>
+A company does a reverse split because its shares became too cheap to trade where it needs to trade.
+A share price that low almost always means a lot of shares outstanding relative to the business, and
+that usually means the company has been funding itself with
+<a href="/guides/spot-share-dilution">dilution</a>.
+</p>
+<p>
+The pattern is common enough to have a name: the reverse split fixes the listing problem, and then
+the company keeps issuing shares to fund itself, which pushes the price back down toward the level
+that caused the split. A reverse split inside a company that is still burning cash is often a
+signal that the dilution will continue, sometimes within the same year, because the underlying need
+for money did not go away. The split changed the scoreboard, not the game.
+</p>
+<p>
+There are exceptions. A profitable small company can reverse split for a technical reason and then
+grow into it. The point is not that every reverse split is a death knell. The point is that the split
+is a fact about the past, and the interesting question is always the financing that follows.
+</p>
+
+<h2>How to spot one coming</h2>
+<ul class="guide-list">
+  <li><b>The price.</b> A stock camped below the exchange minimum is living on a clock. That is often the setup.</li>
+  <li><b>A proxy statement (DEF 14A).</b> Companies typically need shareholder approval to amend the charter for a split ratio. The proposal appears in the proxy before the split happens.</li>
+  <li><b>Form 8-K.</b> The completion shows up in an 8-K covering the charter amendment and, often, an item on the change in rights of security holders.</li>
+  <li><b>The ticker.</b> Some, though not all, reverse splits add a letter to the ticker for a period. It is not a reliable rule, but you will see it.</li>
+</ul>
+<p>
+On the <a href="/">report</a>, a reverse split shows up as a sudden collapse in the share-count history,
+because the reported count divides while the price was not restated the same way in the chart. The
+dilution chart labels these so the drop reads as a split rather than a real buyback.
+</p>
+
+<h2>What to actually ask</h2>
+<ol class="guide-list">
+  <li>Was the split driven by a listing deficiency? Read the reason in the proxy or 8-K.</li>
+  <li>Is the company still burning cash? If so, see <a href="/guides/cash-runway">Cash Runway</a>.</li>
+  <li>Is there an active shelf or ATM that can keep issuing? If yes, the price put back on the board is not the last of the supply.</li>
+</ol>
+
+<p class="cite">
+SOURCES: exchange continued-listing requirements (Nasdaq and NYSE listing rules on minimum bid
+price and equity standards); SEC registration statements and Form 8-K covering charter amendments;
+SEC Investor.gov glossary on stock splits. Company DEF 14A proxy materials and Form 10-Q cover
+pages for share counts before and after a split.
+</p>
+
+{% endblock %}

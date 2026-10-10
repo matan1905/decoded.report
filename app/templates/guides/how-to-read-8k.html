@@ -1,0 +1,77 @@
+{% extends "guides_base.html" %}
+{% block guide_body %}
+
+<p>
+A Form 8-K is the company telling the market that something happened between its regular quarterly
+reports. It is not a quarterly update and it is not a press release. It is a legal filing with a
+deadline, and the deadline is the reason it is worth reading: for most reportable events a US
+company has to file within four business days.
+</p>
+
+<h2>The four-business-day rule</h2>
+<p>
+The SEC set the deadline at four business days for most items when it overhauled Form 8-K in 2004.
+Day one is the first business day after the event. There is no twelve-day extension under Rule 12b-25
+for the covered items, which is exactly the point: the deadline is meant to force fast disclosure.
+The exceptions are the items that report earnings (2.02), Regulation FD disclosures (7.01), and
+voluntary disclosures (8.01), which have no four-day clock, and a handful of items with special
+timing.
+</p>
+<p>
+Practically, this means a fresh 8-K is often the fastest signal that something material changed,
+usually faster than the company's own public relations.
+</p>
+
+<h2>The items that change the story</h2>
+<p>
+An 8-K is organized by item number, and the number tells you what kind of event it is. Most items
+are routine mechanics. A few are the ones to stop on.
+</p>
+
+<h3>Serious</h3>
+<ul class="guide-list">
+  <li><b>Item 1.03, Bankruptcy or Receivership.</b> The company has filed for bankruptcy or is in receivership. This is about as direct as disclosure gets.</li>
+  <li><b>Item 3.01, Notice of Delisting or Failure to Satisfy a Continued Listing Rule.</b> The exchange has told the company it no longer meets a listing standard, often a minimum share price or minimum equity test. A delisting notice is a countdown, not an eviction, but it forces action.</li>
+  <li><b>Item 4.02, Non-Reliance on Previously Issued Financial Statements.</b> The company is telling you that numbers it already published should no longer be trusted because of an error. This is one of the loudest signals a filing can send.</li>
+  <li><b>Item 4.01, Changes in Certifying Accountant.</b> The auditor resigned, was dismissed, or declined to stand for reappointment. Sometimes routine. Sometimes the canary.</li>
+  <li><b>Item 3.02, Unregistered Sales of Equity Securities.</b> Shares were sold without a registered offering, often in a private placement or on conversion of debt. Frequently the first sighting of dilution.</li>
+  <li><b>Item 2.04, Triggering Events That Accelerate a Financial Obligation.</b> A lender or counterparty can now demand faster repayment. A liquidity shock.</li>
+</ul>
+
+<h3>Worth reading</h3>
+<ul class="guide-list">
+  <li><b>Item 2.01, Completion of an Acquisition or Disposition of Assets.</b> The company bought or sold something significant.</li>
+  <li><b>Item 2.03, Creation of a Direct Financial Obligation.</b> New debt or a new lease, material enough to disclose.</li>
+  <li><b>Item 2.06, Material Impairments.</b> A write-down of assets.</li>
+  <li><b>Item 5.01, Changes in Control.</b> Control of the company has changed hands, with all the change-of-direction that implies.</li>
+  <li><b>Item 5.02, Departure or Appointment of Directors and Officers.</b> A CEO, CFO or other named executive left or arrived. Sudden senior departures are worth a look.</li>
+</ul>
+
+<h3>Mostly routine</h3>
+<ul class="guide-list">
+  <li><b>Item 2.02, Results of Operations and Financial Condition.</b> The quarterly or annual earnings release. Scheduled and expected, though the numbers matter.</li>
+  <li><b>Item 7.01, Regulation FD Disclosure.</b> Information the company is deliberately sharing publicly to satisfy fair disclosure rules.</li>
+  <li><b>Item 8.01, Other Events.</b> Voluntary, no deadline, and not always material. Read it, do not infer from the label.</li>
+</ul>
+
+<h2>How to read one in five minutes</h2>
+<ol class="guide-list">
+  <li>Open the filing and read the whole item list first. Two or three lines tell you what kind of filing this is.</li>
+  <li>For any item above, click into the exhibit. The 8-K text is a summary; the agreement itself is the detail.</li>
+  <li>Check the filing date against the event date. A late filing is its own small signal.</li>
+  <li>Ask what it changes about the company's cash, its share count, or its listing. Those are the three things that move an equity story.</li>
+</ol>
+<p>
+The <a href="/">report</a> scans the recent 8-Ks for a company, collapses them into plain language and
+flags the items that actually change the situation, so a routine earnings 8-K does not drown out an
+Item 4.02 sitting right next to it.
+</p>
+
+<p class="cite">
+SOURCES: SEC final rule, "Additional Form 8-K Disclosure Requirements and Acceleration of Filing
+Date" (sec.gov), which set the four-business-day deadline and the current item numbering; SEC
+Division of Corporation Finance, Form 8-K Frequently Asked Questions (sec.gov); the item list on
+Form 8-K itself.
+</p>
+
+{% endblock %}

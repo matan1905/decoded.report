@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% block ads_head %}{% include "_ads_head.html" %}{% endblock %}
 {% block title %}{{ app_name }}: SEC red flags for any ticker, decoded live{% endblock %}
 {% block content %}
 
@@ -53,6 +54,43 @@
     <p>Every number links to the exact filing it came from. If you can read, you can check all of it yourself.</p>
   </div>
 </div>
+
+<section class="sec">
+  <div class="sechead"><span class="no">§</span><h2>Why This Exists</h2><span class="rule"></span></div>
+  <p class="sub">
+    A quarterly report is not written for a reader in a hurry. The line that matters, a going concern
+    paragraph or a fresh at-the-market program, sits somewhere between forty pages of footnotes and an
+    exhibit nobody opens. Most people never see it until after the stock has already moved.
+  </p>
+  <p class="sub">
+    decoded.report reads the filings and puts the parts that change a holder's situation at the top,
+    in order, with a link back to the document behind each one. It does not tell you what to do. It
+    answers the questions that come before a decision: is this company printing shares, how many
+    months of cash does it have, has it been served a delisting notice, did the auditors sign off
+    clean. Those are all facts in the record, and the record is public.
+  </p>
+  <p class="sub">
+    The scores are a screening heuristic built from fixed rules, described in full on the
+    <a href="/methodology">methodology page</a>. It is a starting point for your own reading, not a
+    replacement for it.
+  </p>
+</section>
+
+{% if guides %}
+<section class="sec">
+  <div class="sechead"><span class="no">+</span><h2>Learn the Mechanics</h2><span class="rule"></span><span class="aux"><a href="/guides">ALL GUIDES →</a></span></div>
+  <p class="sub">Short, plain-English guides to the things that decide most microcap outcomes: dilution, going concern, 8-Ks, reverse splits, runway and insider filings.</p>
+  <div class="guidegrid">
+    {% for g in guides[:3] %}
+    <a class="guidecard" href="/guides/{{ g.slug }}">
+      <span class="gc-min">{{ g.minutes }} MIN READ</span>
+      <span class="gc-title">{{ g.title }}</span>
+      <span class="gc-desc">{{ g.description }}</span>
+    </a>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
 
 {{ ad('footer') }}
 

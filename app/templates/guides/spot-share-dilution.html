@@ -1,0 +1,131 @@
+{% extends "guides_base.html" %}
+{% block guide_body %}
+
+<p>
+Most people lose money in a small company for the same reason, and it is not a bad quarter or a
+missed earnings number. It is that the company kept printing shares while they held. Dilution is
+the mechanic behind the slow bleed, and unlike a press release it is fully visible in the filings
+long before the damage shows up in the price.
+</p>
+
+<p>
+This guide is about reading that trail. Nothing here is a prediction and nothing here is advice. It
+is a way to answer two questions with documents: is this company structurally likely to issue more
+shares, and is it already doing it?
+</p>
+
+<h2>The one number to start with</h2>
+<p>
+Every public company reports its shares outstanding. On a quarterly report (Form 10-Q) or annual
+report (Form 10-K) the count appears on the cover page and again on the balance sheet, and the
+statement of stockholders' equity shows how the number moved during the period. Pull three
+consecutive quarters and write the count next to its date. If the line is climbing, you are looking
+at dilution that has already happened. If it is flat but the company is preconditioned to issue,
+you are looking at dilution that is likely to happen.
+</p>
+<p>
+A rising share count is not automatically a death sentence. A company can issue shares to fund
+growth that earns more than the shares cost. The question is never "did they issue," it is "what did
+they get, and what did holders give up." But you cannot ask that question until you can see the
+number, and the number is always in the filing.
+</p>
+
+<h2>The five engines of dilution</h2>
+<p>
+New shares almost never appear from nowhere. They come from one of five machines, and each leaves
+its own paper trail.
+</p>
+
+<h3>1. A shelf registration and a follow-on offering</h3>
+<p>
+A company files a Form S-3 to put securities "on the shelf." Under SEC Rule 415 the shelf lets it
+sell up to a registered amount later without filing a brand new registration each time. Filing an
+S-3 is not a sale. It is the company asking for permission to sell, and it can sit unused. When the
+company actually sells, a prospectus supplement (often Form 424B5) lands in EDGAR with the share
+count, the price and the underwriter. That supplement is the moment dilution becomes real.
+</p>
+<p>
+When you see a fresh S-3, the honest read is "management wants the option to dilute." When you see
+the 424B5, the option was exercised.
+</p>
+
+<h3>2. At-the-market (ATM) programs</h3>
+<p>
+An ATM lets a company trickle newly issued shares into the open market through a sales agent, at
+whatever the market price is that day, instead of dumping one block at a discount. It is the same
+dilution as a follow-on, just spread over weeks or months. The company must disclose the total
+authorized amount, but it is not required to announce each day's sales. The practical consequence
+is a share count that drifts up quietly and a price that sags without a single obvious headline.
+The place to catch it is the quarterly report, which discloses how many shares were sold under the
+ATM during the period.
+</p>
+
+<h3>3. Variable-rate convertible debt</h3>
+<p>
+This is the engine people mean when they say "death spiral." A company borrows money, and the lender
+has the right to convert that debt into shares at a discount to the market price at the time of
+conversion. Because the conversion price floats down as the stock falls, every drop in the price
+hands the lender more shares, which the lender can then sell, which pushes the price down further.
+The mechanism is self-reinforcing by design. It is not illegal and it is not always toxic, but it is
+the most aggressive form of dilution on this list, and it is usually visible in the terms of the
+convertible note filed as an exhibit.
+</p>
+
+<h3>4. Warrants and options</h3>
+<p>
+Employee option grants and investor warrants are shares waiting to exist. When exercised, they add
+to the count. This is the most ordinary kind of dilution and the least alarming in isolation, but it
+matters when the overhang is large relative to shares outstanding. Look at the diluted share count
+on the income statement and compare it to the basic count: a big gap tells you how many additional
+shares are queued up.
+</p>
+
+<h3>5. Equity lines and standby purchase agreements</h3>
+<p>
+These are pre-arranged deals where an investor agrees to buy newly issued shares on demand, up to a
+cap, usually at a discount to the market. They are a funding source of last resort and they behave
+like a slow ATM. The tell is language about a "purchase agreement," "committed equity facility," or
+a named financing counterparty in the filing's exhibits.
+</p>
+
+<h2>The tells, in the order you will see them</h2>
+<ul class="guide-list">
+  <li><b>Form S-1 or S-3 registration.</b> The setup. Permission to sell, not yet a sale.</li>
+  <li><b>Form 424B5 prospectus supplement.</b> The execution of a shelf sale. Sizes and prices the deal.</li>
+  <li><b>Form 8-K, Item 3.02 (Unregistered Sales of Equity Securities).</b> Sales that were not registered, often conversions and private placements.</li>
+  <li><b>Form 8-K, Item 1.01 (Entry into a Material Definitive Agreement).</b> Frequently the financing agreement itself.</li>
+  <li><b>Quarterly share count.</b> The scoreboard. Rising, flat, or falling.</li>
+  <li><b>Quarterly "sales under the ATM" disclosure.</b> The quiet, ongoing print.</li>
+</ul>
+
+<h2>How to check any ticker in two minutes</h2>
+<ol class="guide-list">
+  <li>Open the latest quarterly report and note shares outstanding on the cover page.</li>
+  <li>Go back two quarters and do the same. Compute the percent change.</li>
+  <li>Search EDGAR for that company's recent Form S-3, 424B5 and 8-K Item 3.02 filings.</li>
+  <li>If there is an ATM, read the most recent quarterly report for shares sold under it.</li>
+  <li>Ask the only question that matters: what is the cash being spent on, and is it producing anything?</li>
+</ol>
+<p>
+The <a href="/">report</a> automates the share-count history and flags the dilution-relevant filings for
+you, so you can spend your time on the last question instead of hunting for the first four.
+</p>
+
+<h2>Where this fits</h2>
+<p>
+Dilution is a probability and a pace, not a verdict. A company with a large shelf, an active ATM and
+a widening loss is a very different situation from one issuing a modest number of shares to close a
+profitable acquisition. Both show up as "share count went up." Reading the engine tells you which
+one you are holding. See <a href="/guides/shelf-offerings-atm">Shelf Offerings and ATMs</a> for the
+paperwork in detail, and <a href="/guides/cash-runway">Cash Runway</a> for why a short runway is what
+usually forces the issue.
+</p>
+
+<p class="cite">
+SOURCES: SEC Rule 415 and Form S-3 shelf registration (sec.gov); SEC Form 424B5 prospectus
+supplement; Form 8-K Items 1.01 and 3.02 (sec.gov); SEC Investor.gov guidance on dilution and
+offerings (investor.gov); company Form 10-Q and 10-K cover pages and statements of stockholders'
+equity.
+</p>
+
+{% endblock %}

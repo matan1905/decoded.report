@@ -1,0 +1,88 @@
+{% extends "guides_base.html" %}
+{% block guide_body %}
+
+<p>
+The value of a screening routine is not that it finds you winners. It is that it applies the same
+standard to every company, so your decision cannot be talked out of you by a good story on a bad
+balance sheet. Here is one you can run in about ten minutes, in a fixed order, on any US-listed
+ticker.
+</p>
+
+<h2>Step 1: Does it file?</h2>
+<p>
+Start with whether the company has current filings. A company that has gone quiet, with no annual or
+quarterly report in many months, is telling you something before you read a single number. Late or
+abandoned filings usually mean trouble: a trading suspension, a deregistration, or a company that
+can no longer afford its own auditors. If the record has gone stale, stop and ask why.
+</p>
+
+<h2>Step 2: Cash and runway</h2>
+<p>
+Pull cash and cash equivalents from the balance sheet and net cash used in operating activities from
+the cash flow statement. Divide to get <a href="/guides/cash-runway">runway</a> in months. Write the
+number down. Short runway plus rising burn is the single most common reason a small company issues
+shares.
+</p>
+
+<h2>Step 3: Share count over time</h2>
+<p>
+Note shares outstanding on the cover page of the last three quarterly reports. Rising means
+<a href="/guides/spot-share-dilution">dilution</a> is already happening. Flat is neutral. Falling is
+rare and usually means a buyback or a reverse split, and you should know which.
+</p>
+
+<h2>Step 4: Recent 8-Ks</h2>
+<p>
+Scan the last few 8-Ks for the items that change the story. Item 4.02 (non-reliance on prior
+financials), Item 3.01 (delisting notice), Item 4.01 (auditor change), Item 3.02 (unregistered share
+sales), Item 1.03 (bankruptcy) and Item 5.01 (change of control) are the ones to stop on. Everything
+else is context. The <a href="/guides/how-to-read-8k">8-K guide</a> has the full list.
+</p>
+
+<h2>Step 5: Offerings and shelf capacity</h2>
+<p>
+Search EDGAR for Form S-3, Form S-1 and Form 424B5. An S-3 means the company has permission to sell
+shares. A 424B5 means it did. An active at-the-market program means it can keep doing it quietly.
+The <a href="/guides/shelf-offerings-atm">shelf and ATM guide</a> explains the paperwork.
+</p>
+
+<h2>Step 6: Going concern language</h2>
+<p>
+Search the latest annual and quarterly report for the phrase "going concern." If it is there, read
+whether the doubt was alleviated. A first-time warning is a signal that financing, and probably
+shares, is coming. See <a href="/guides/going-concern-warning">Going Concern Warnings</a>.
+</p>
+
+<h2>Step 7: Insiders</h2>
+<p>
+Look at the insider flow. Ignore the grants and the tax withholding and ask whether there has been
+meaningful open-market buying or selling. The <a href="/guides/insider-selling-form-4">Form 4 guide</a>
+covers the codes.
+</p>
+
+<h2>Step 8: The one judgment call</h2>
+<p>
+By now you have six facts: filing cadence, runway, share count trend, recent 8-Ks, offering
+machinery, and insider behavior. The only subjective question is what the company is doing with the
+money it raises. A company pouring cash into a business that is growing is a different animal from
+one pouring cash into a business that is shrinking. The filings tell you the former. The story in
+the press release tells you the latter. Believe the filing.
+</p>
+
+<h2>Why the order matters</h2>
+<p>
+Doing the boring financial steps before reading the optimistic narrative is the whole point. If you
+read the story first, every number afterward gets bent to fit it. If you read the numbers first, the
+story has to earn its place. The order is the discipline.
+</p>
+<p>
+The <a href="/">report</a> runs steps 1 through 7 for any ticker and lays them out with citations, so
+you can spend your ten minutes on step 8 instead of shuffling through EDGAR.
+</p>
+
+<p class="cite">
+SOURCES: SEC EDGAR full-text search (sec.gov); company Forms 10-K, 10-Q and 8-K; SEC forms S-1, S-3
+and 424B5; SEC Office of Investor Education guidance on insider filings (investor.gov).
+</p>
+
+{% endblock %}

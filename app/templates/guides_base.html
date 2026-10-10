@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block ads_head %}{% include "_ads_head.html" %}{% endblock %}
+{% block title %}{{ g.title }} | {{ app_name }}{% endblock %}
+{% block meta %}<meta name="description" content="{{ g.description }}">{% endblock %}
+{% block og %}<link rel="canonical" href="{{ page_url }}">
+<meta property="og:type" content="article">
+<meta property="og:title" content="{{ g.title }}">
+<meta property="og:description" content="{{ g.description }}">
+<meta property="og:url" content="{{ page_url }}">{% endblock %}
+{% block schema %}
+<script type="application/ld+json">{{ {
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": g.title,
+  "description": g.description,
+  "datePublished": g.published,
+  "dateModified": g.updated,
+  "author": {"@type": "Organization", "name": "decoded.report"},
+  "publisher": {"@type": "Organization", "name": "decoded.report"},
+  "mainEntityOfPage": page_url
+}|tojson }}</script>
+{% endblock %}
+{% block content %}
+
+<article class="guide">
+  <div class="kicker">GUIDE · {{ g.minutes }} MIN READ</div>
+  <h1>{{ g.title }}</h1>
+  <p class="guide-dek">{{ g.description }}</p>
+  <p class="cite">DECODED.REPORT EDITORIAL · UPDATED {{ g.updated }} · EVERY CLAIM TRACES TO A PUBLIC FILING OR A NAMED SOURCE</p>
+
+  {{ ad('top') }}
+
+  <div class="guidebody">
+    {% block guide_body %}{% endblock %}
+  </div>
+
+  <div class="alertbox guide-cta">
+    <h3>Put it to work on a real ticker</h3>
+    <p class="note">Run any US-listed company through the report and see the same numbers this guide is talking about, each one linked to its filing.</p>
+    <form class="inline-form searchbar" action="/search" method="post">
+      <input type="text" name="ticker" placeholder="TYPE ANY TICKER" autocomplete="off" autocapitalize="characters">
+      <button class="btn" type="submit">DECODE →</button>
+    </form>
+  </div>
+
+  {{ ad('footer') }}
+
+  {% if related_guides %}
+  <section class="sec">
+    <div class="sechead"><span class="no">+</span><h2>Keep Reading</h2><span class="rule"></span></div>
+    <div class="guidegrid">
+      {% for r in related_guides %}
+      <a class="guidecard" href="/guides/{{ r.slug }}">
+        <span class="gc-min">{{ r.minutes }} MIN</span>
+        <span class="gc-title">{{ r.title }}</span>
+        <span class="gc-desc">{{ r.description }}</span>
+      </a>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  <p class="cite" style="margin-top:26px;">THIS IS AN INFORMATIONAL ARTICLE ABOUT SEC FILINGS AND MARKET MECHANICS. NOT INVESTMENT ADVICE. NOT A RECOMMENDATION.</p>
+</article>
+
+{% endblock %}

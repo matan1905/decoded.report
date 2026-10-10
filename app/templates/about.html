@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block ads_head %}{% include "_ads_head.html" %}{% endblock %}
+{% block title %}About decoded.report | {{ app_name }}{% endblock %}
+{% block meta %}<meta name="description" content="decoded.report turns a company's own SEC filings into a cited risk report. Who builds it, how it makes money, and the editorial standards behind it.">{% endblock %}
+{% block og %}<link rel="canonical" href="{{ page_url }}">
+<meta property="og:type" content="website">
+<meta property="og:title" content="About decoded.report">
+<meta property="og:description" content="Who builds decoded.report, how it makes money, and the standards behind every number.">
+<meta property="og:url" content="{{ page_url }}">{% endblock %}
+{% block content %}
+
+<section class="land-hero" style="padding:40px 0 4px;">
+  <div class="kicker">ABOUT</div>
+  <h1 style="font-size:clamp(28px,4vw,40px);">The filing is the story. We just make it readable.</h1>
+</section>
+
+{{ ad('top') }}
+
+<section class="sec">
+  <div class="sechead"><span class="no">01</span><h2>What This Is</h2><span class="rule"></span></div>
+  <p class="sub">
+    decoded.report is a free screening tool for US-listed companies. You type a ticker and it reads
+    that company's own SEC filings (annual reports, quarterlies, 8-Ks, registration statements,
+    insider forms) and produces a cited report: a risk index from 0 to 100, every red-flag phrase it
+    found this year, a share-count history that shows dilution in the open, how many months of cash
+    the company has left at its current burn, the insider paper trail, and an outside-records pass
+    over domains, sanctions lists and institutional holders.
+  </p>
+  <p class="sub">
+    The point is not to tell you what to buy. It is to compress hours of EDGAR reading into something
+    you can verify in minutes. Every number links back to the document it came from, so you never
+    have to take our word for it.
+  </p>
+</section>
+
+<section class="sec">
+  <div class="sechead"><span class="no">02</span><h2>Who Runs It</h2><span class="rule"></span></div>
+  <p class="sub">
+    decoded.report is an independent project. It is not a broker, a fund, an investment adviser, or
+    affiliated with any issuer it covers. There is no pay-to-play: companies cannot pay to change a
+    score, remove a flag, or be featured. The reports are generated from the same public filings that
+    anyone can pull from the SEC's EDGAR system.
+  </p>
+</section>
+
+<section class="sec">
+  <div class="sechead"><span class="no">03</span><h2>Editorial Standards</h2><span class="rule"></span></div>
+  <ul class="guide-list">
+    <li><b>Cite or drop it.</b> A claim that cannot be tied to a specific filing, form and date does not go on the page.</li>
+    <li><b>No forecasts.</b> We describe what a company reported and what it has done. We do not predict prices or returns.</li>
+    <li><b>Show the negative and the neutral.</b> A clean screen is reported as clean. A dormant flag stays visible even when it is old.</li>
+    <li><b>Deterministic by design.</b> Scores come from fixed, published rules applied to the same inputs for everyone. There is no editorial hand on the number.</li>
+    <li><b>Corrections.</b> If a report is wrong because of a parsing error or a stale cache, tell us and it gets fixed. Email <a href="mailto:contact@decoded.report">contact@decoded.report</a>.</li>
+  </ul>
+</section>
+
+<section class="sec">
+  <div class="sechead"><span class="no">04</span><h2>How We Make Money</h2><span class="rule"></span></div>
+  <p class="sub">
+    The reports, the guides and the tools are free. The site is supported by display advertising
+    served by Google AdSense. Ads are labeled, kept separate from the report content, and never
+    influence a score. We do not sell your personal information, and we do not require an account
+    to use the site.
+  </p>
+</section>
+
+<section class="sec">
+  <div class="sechead"><span class="no">05</span><h2>Data Sources</h2><span class="rule"></span></div>
+  <p class="sub">
+    Primary source is the SEC's EDGAR system: company submissions, financial statements, 8-K and
+    other current reports, registration statements and insider Forms 3/4/5. Supporting records come
+    from public registries and databases, including the US Treasury OFAC sanctions list, RDAP and
+    archived WHOIS records, certificate transparency logs, the GLEIF legal-entity registry, and
+    public market-data providers for prices, splits, float and short interest. Full detail lives on
+    the <a href="/methodology">methodology page</a>.
+  </p>
+</section>
+
+<section class="sec">
+  <div class="sechead"><span class="no">06</span><h2>Contact</h2><span class="rule"></span></div>
+  <p class="sub">
+    Questions, corrections, press, or data issues: <a href="mailto:contact@decoded.report">contact@decoded.report</a>.
+    For legal terms see <a href="/terms">Terms of Use</a> and <a href="/privacy">Privacy Policy</a>.
+  </p>
+</section>
+
+{{ ad('footer') }}
+
+<p class="cite" style="margin-top:26px;">NOT INVESTMENT, LEGAL, TAX OR FINANCIAL ADVICE. NOTHING HERE IS A RECOMMENDATION TO BUY, SELL OR HOLD ANY SECURITY. VERIFY AGAINST THE CITED FILINGS.</p>
+
+{% endblock %}

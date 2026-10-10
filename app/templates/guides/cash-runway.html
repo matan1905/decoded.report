@@ -1,0 +1,75 @@
+{% extends "guides_base.html" %}
+{% block guide_body %}
+
+<p>
+Cash runway answers one question: if nothing changes, how long can this company keep operating before
+it runs out of money. It is the most useful number in microcap investing and one of the easiest to
+get wrong, because the two inputs sit on different statements and mean different things depending on
+how you read them.
+</p>
+
+<h2>The two numbers</h2>
+<p>
+<strong>Cash on hand</strong> comes from the balance sheet, usually as a line called "cash and cash
+equivalents" or "cash and cash equivalents and restricted cash." <strong>Burn</strong> comes from the
+cash flow statement, as "net cash used in operating activities." Burn is the amount of cash the
+business consumes running itself, before financing and investing.
+</p>
+<p>
+The formula is simple:
+</p>
+<p class="guide-formula">runway in months = cash and equivalents ÷ monthly operating burn</p>
+<p>
+If you have a quarterly report, divide the quarterly operating cash outflow by three to get a
+monthly figure. Then divide cash by that monthly burn.
+</p>
+
+<h2>A worked example</h2>
+<p>
+Suppose a company reports $12 million of cash and equivalents. Over the last quarter it used $6
+million of cash in operating activities. Monthly burn is $2 million, so runway is $12M ÷ $2M = six
+months. If the burn is accelerating, six months is optimistic. If the company just closed a
+financing after the quarter ended, the balance sheet cash figure is already stale and the true runway
+is longer. Both caveats are in the filings if you look.
+</p>
+
+<h2>Where people get it wrong</h2>
+<ul class="guide-list">
+  <li><b>Mixing up operating burn with the change in cash.</b> The net change in cash on the statement includes financing and investing, and a company can raise money and spend it in the same quarter. Operating cash flow is the pure burn number.</li>
+  <li><b>Ignoring restricted cash.</b> Some of the "cash" line is restricted and not available to pay salaries. Read the note.</li>
+  <li><b>Forgetting one-time items.</b> A big lawsuit payment or a grant received in the quarter distorts the burn. Look at the trend across several quarters, not one.</li>
+  <li><b>Treating burn as fixed.</b> A company can cut spending. Management's own plan often says it will reduce the burn. Whether it can is a judgment call, but the option exists.</li>
+  <li><b>Stopping at cash.</b> Debt maturities and lease obligations are claims on the same pool of cash. A company with eight months of runway and a loan due in five is tighter than eight months suggests.</li>
+</ul>
+
+<h2>How to read the result</h2>
+<ul class="guide-list">
+  <li><b>Under six months.</b> Tight. In this range a company usually needs to raise money or cut hard, and raising money usually means new shares. Expect <a href="/guides/spot-share-dilution">dilution</a> or a going concern disclosure.</li>
+  <li><b>Six to twelve months.</b> The financing clock is running. Watch for an S-3, an ATM, or a shelf drawdown.</li>
+  <li><b>Over a year.</b> Breathing room, unless the burn is accelerating or there is debt coming due inside the window.</li>
+</ul>
+<p>
+Runway is not a forecast of failure. It is a countdown of a specific, measurable constraint. A
+company with short runway and a clear plan to fix it is a different situation from a company with
+short runway and no visible source of money. The filings tell you which one you are holding.
+</p>
+
+<h2>The link to going concern</h2>
+<p>
+When runway gets short enough and management concludes there is substantial doubt about the next
+twelve months, the company must say so in a going concern disclosure. That is the accounting version
+of the same fact. Our guide on <a href="/guides/going-concern-warning">going concern warnings</a>
+covers how that disclosure is written and what it means.
+</p>
+<p>
+The <a href="/">report</a> computes runway from the company's own filings and shows it next to the cash
+trend, so you can see both the level and the direction.
+</p>
+
+<p class="cite">
+SOURCES: company Form 10-K and 10-Q balance sheets (cash and cash equivalents) and statements of
+cash flows (net cash used in operating activities); SEC Investor.gov guidance on reading financial
+statements.
+</p>
+
+{% endblock %}

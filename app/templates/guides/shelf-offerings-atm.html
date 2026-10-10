@@ -1,0 +1,87 @@
+{% extends "guides_base.html" %}
+{% block guide_body %}
+
+<p>
+If dilution is the disease, the shelf registration is the prescription the company writes for itself
+in advance. It is the paperwork that lets a company sell shares later without warning, and learning
+to read it turns "why did the stock drop on no news" into a question with a document behind it.
+</p>
+
+<h2>Shelf registration, in plain terms</h2>
+<p>
+US companies register securities before they sell them. Two forms do most of the work. Form S-1 is
+the general registration statement, used by companies that do not yet qualify for the faster form.
+Form S-3 is the short form, available to companies that meet certain eligibility conditions
+including timely filing of their reports. Filing an S-3 is not a sale. It is the company placing a
+shelf of registered securities that it can draw down later.
+</p>
+<p>
+Under SEC Rule 415, a shelf registration can stay effective for up to three years. During that
+window the company can sell in pieces, timing each sale to its needs and the market. The registered
+amount is a ceiling, not a commitment. Unused capacity simply expires when the shelf does.
+</p>
+<p>
+This is why an S-3 filing moves a stock even when no shares are sold. The market reads the shelf as
+an option to dilute, and prices that possibility in. Traders call the drag from that overhang.
+</p>
+
+<h2>Follow-on offering: the shelf drawn down</h2>
+<p>
+When a company actually sells off the shelf, it files a prospectus supplement. Form 424B5 is the one
+you will see most often for a new sale. It states the number of shares, the offering price or the
+pricing mechanism, and the underwriter or sales agent. If you only set one alert on a company's
+EDGAR feed, make it this one: a 424B5 is dilution happening now.
+</p>
+<p>
+A follow-on offering usually prices at a discount to the last close to attract buyers. That discount
+plus the new supply is why the stock often drops on the announcement.
+</p>
+
+<h2>At-the-market (ATM) programs</h2>
+<p>
+An ATM is a shelf sale stretched over time. The company engages a sales agent, usually a bank, to
+sell newly issued shares into the ordinary market at whatever the price is on the day of the sale.
+There is no single block trade and often no single headline. The company must disclose the total
+amount it may sell under the program, but it is not required to announce each day's sales.
+</p>
+<p>
+For a holder the effect is the same as a follow-on: more shares, each worth less of the company. The
+difference is that the dilution is quiet, and the price tends to drift down gradually rather than gap
+down once. The way to catch it is the quarterly report, which discloses how many shares were sold
+under the ATM during the period.
+</p>
+
+<h2>The "baby shelf" limit</h2>
+<p>
+Smaller companies face a cap on how much they can sell off an S-3 in a given year. Under the general
+instructions to Form S-3, a company that does not meet a public float threshold may sell only up to
+one third of its public float in any twelve-month period using that form. This is the baby shelf
+rule. It limits how fast a small company can drain its shelf, which is why very small issuers often
+use S-1 registration, private placements, or convertible debt instead. Knowing which of these a
+company relies on tells you a lot about where the next shares will come from.
+</p>
+
+<h2>How to track them on any ticker</h2>
+<ol class="guide-list">
+  <li><b>Find the shelf.</b> Search EDGAR for the company's Form S-3 and read the registered amount and the expiration.</li>
+  <li><b>Watch for 424B5.</b> Each one is a sale off the shelf or an ATM program launch.</li>
+  <li><b>Read the 10-Q for "at the market" language.</b> That is where the cumulative ATM sales show up.</li>
+  <li><b>Track the share count.</b> Quarter over quarter, as in <a href="/guides/spot-share-dilution">How to Spot Share Dilution</a>.</li>
+  <li><b>Check the financing exhibits.</b> Convertible notes and equity lines move shares too, and they leave terms in the exhibits that a shelf alone does not.</li>
+</ol>
+
+<h2>The one question that separates good from bad</h2>
+<p>
+Shelf capacity is a tool. A company that raises money to fund a specific, creditable plan is using
+the tool well. A company that draws on the shelf every quarter just to keep the lights on is on a
+treadmill, and the share count is the odometer. The filing tells you how. The use-of-proceeds
+section tells you why. Read both.
+</p>
+
+<p class="cite">
+SOURCES: SEC Rule 415, shelf registration (sec.gov); Form S-3 and General Instruction I.B.6, the
+"baby shelf" limit for primary offerings by smaller reporting companies (sec.gov); Form 424B5
+prospectus supplements; company Form 10-Q disclosures of at-the-market sales.
+</p>
+
+{% endblock %}

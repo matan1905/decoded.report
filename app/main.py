@@ -13,6 +13,7 @@ from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse,
 from fastapi.templating import Jinja2Templates
 
 from . import ads
+from . import content
 from . import db
 from .config import APP_NAME, APP_VERSION, BASE_DIR, SEC_USER_AGENT
 from .config import ADMIN_PASSWORD, ADMIN_USERNAME, DEFAULT_PUBLIC_URL, BASE_URL as CONFIG_BASE_URL
@@ -184,7 +185,8 @@ def landing(request: Request):
     hot = [r["ticker"] for r in db.recent_searched(limit=8)]
     return templates.TemplateResponse(
         request, "landing.html",
-        {"app_name": APP_NAME, "app_version": APP_VERSION, "hot": hot},
+        {"app_name": APP_NAME, "app_version": APP_VERSION, "hot": hot,
+         "guides": content.GUIDES},
     )
 
 
@@ -634,6 +636,66 @@ def terms(request: Request):
     })
 
 
+# ---- editorial content: guides, about, methodology -------------------------------
+
+def _content_ctx(request: Request, **extra) -> dict:
+    ctx = {"app_name": APP_NAME, "app_version": APP_VERSION,
+           "page_url": _base_url(request)}
+    ctx.update(extra)
+    return ctx
+
+
+@app.get("/guides", response_class=HTMLResponse)
+def guides_index(request: Request):
+    return templates.TemplateResponse(
+        request, "guides_index.html",
+        _content_ctx(request, guides=content.GUIDES),
+    )
+
+
+@app.get("/guides/rss.xml", response_class=Response)
+def guides_rss(request: Request):
+    base = _origin(request)
+    items = "".join(
+        f"<item><title>{g['title']}</title>"
+        f"<link>{base}/guides/{g['slug']}</link>"
+        f"<guid>{base}/guides/{g['slug']}</guid>"
+        f"<description>{g['description']}</description>"
+        f"<pubDate>{g['published']}T00:00:00Z</pubDate></item>"
+        for g in content.GUIDES
+    )
+    body = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<rss version="2.0"><channel>'
+        f"<title>{APP_NAME} guides</title>"
+        f"<link>{base}/guides</link>"
+        "<description>Plain-English guides to reading SEC filings.</description>"
+        + items + "</channel></rss>"
+    )
+    return Response(content=body, media_type="application/rss+xml")
+
+
+@app.get("/guides/{slug}", response_class=HTMLResponse)
+def guide_page(request: Request, slug: str):
+    meta = content.guide_meta(slug)
+    if not meta:
+        return RedirectResponse(url="/guides", status_code=302)
+    return templates.TemplateResponse(
+        request, f"guides/{slug}.html",
+        _content_ctx(request, g=meta, related_guides=content.related(slug)),
+    )
+
+
+@app.get("/about", response_class=HTMLResponse)
+def about(request: Request):
+    return templates.TemplateResponse(request, "about.html", _content_ctx(request))
+
+
+@app.get("/methodology", response_class=HTMLResponse)
+def methodology(request: Request):
+    return templates.TemplateResponse(request, "methodology.html", _content_ctx(request))
+
+
 # ---- OG stamp cards (share-preview PNGs) ----------------------------------------
 
 @app.get("/og/bag.png", response_class=Response)
@@ -857,7 +919,8 @@ def robots_txt(request: Request):
 @app.get("/sitemap.xml", response_class=Response)
 def sitemap_xml(request: Request):
     base = _origin(request)
-    urls = ["", "watchlist", "privacy", "terms"]
+    urls = ["", "guides", "methodology", "about", "watchlist", "bag-vs", "privacy", "terms"]
+    urls.extend(f"guides/{g['slug']}" for g in content.GUIDES)
     hot = [r["ticker"] for r in db.recent_searched(limit=50, days=90)]
     urls.extend(f"{t}" for t in hot)
     body = (
@@ -1067,8 +1130,12 @@ def snapshot_route(request: Request, ticker: str):
         "terms": "/terms",
         "watchlist": "/watchlist",
         "bag-vs": "/bag-vs",
+        "guides": "/guides",
+        "about": "/about",
+        "methodology": "/methodology",
         "robots.txt": "/robots.txt",
         "sitemap.xml": "/sitemap.xml",
+        "ads.txt": "/ads.txt",
         "healthz": "/healthz",
     }.get((ticker or "").lower())
     if canonical:

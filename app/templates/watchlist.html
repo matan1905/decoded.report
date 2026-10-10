@@ -29,8 +29,6 @@
 <p class="cite" style="margin-top:10px;">UP TO 8 TICKERS, COMMA-SEPARATED. EACH FULL REPORT IS ONE CLICK AWAY.
 {% if queried %} · <button class="linklike" onclick="return shareLineup(this)">SHARE THIS LINEUP</button>{% endif %}</p>
 
-{{ ad('top') }}
-
 {% if queried %}
 <section class="sec">
   <div class="sechead"><span class="no">Σ</span><h2>The Lineup</h2><span class="rule"></span><span class="aux">{{ results|length }} CASE FILES</span></div>
@@ -74,8 +72,6 @@
       <button class="btn ghost" type="submit">SETTLE IT →</button>
     </form>
   </div>
-
-  {{ ad('footer') }}
 
   <p class="cite">RANKED BY RISK INDEX, WORST FIRST. EVERY ROW LINKS TO THE FULL CITED REPORT.</p>
 </section>

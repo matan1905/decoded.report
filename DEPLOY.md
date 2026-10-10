@@ -59,8 +59,10 @@ never drifts from the live units.
 
 1. Open `https://decoded.report/healthz` and confirm `ok: true` and `ads`
    reflects your configuration.
-2. Open `/`, one company report path (`/{TICKER}`), `/watchlist?t=TICKER1,TICKER2`,
-   and `/bag-vs`.
+2. Open `/`, one company report path (`/{TICKER}`), `/guides`, a guide, `/about`,
+   `/methodology`, `/watchlist?t=TICKER1,TICKER2`, and `/bag-vs`.
+   Confirm `/{TICKER}` and every content page load the AdSense script, and that
+   `/privacy`, `/terms`, a 404 page and the empty `/watchlist` do not.
 3. Confirm the market-data websocket fills slots after the page loads.
 4. Open `/admin/subs` and confirm the browser prompts for Basic Auth.
 5. Confirm `/privacy`, `/terms`, and `/ads.txt` are reachable.
