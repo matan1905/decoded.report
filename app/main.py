@@ -75,15 +75,22 @@ ENGINE_CACHE_TTL = 6 * 3600  # 6h
 
 @app.on_event("startup")
 def _startup():
-    # Startup must never die or block on the database: a locked or slow disk
-    # should degrade the report, not stop the server from binding its port.
+    # Nothing here may block the ASGI lifespan. A locked, slow or missing
+    # database must degrade individual queries, never stop the process from
+    # finishing startup and binding its port. All DB work runs off-thread.
+    log.info("started %s v%s, price mode: %s", APP_NAME, APP_VERSION, _price_state() or "none")
+    threading.Thread(target=_boot_db, daemon=True).start()
+    threading.Thread(target=_warmup, daemon=True).start()
+
+
+def _boot_db():
+    """Schema init and cache sweep, off the startup path. Bounded and
+    non-fatal: a busy database delays these, it does not hang the server."""
     for step, fn in (("schema init", db.init_db), ("cache sweep", db.cache_clear_expired)):
         try:
             fn()
         except Exception as exc:
             log.warning("startup step '%s' failed (continuing): %s", step, exc)
-    log.info("started %s v%s, price mode: %s", APP_NAME, APP_VERSION, _price_state() or "none")
-    threading.Thread(target=_warmup, daemon=True).start()
 
 
 def _warmup():
