@@ -16,7 +16,7 @@ from collections import deque
 
 import httpx
 
-from . import db
+from . import cache
 from .config import SEC_USER_AGENT
 
 log = logging.getLogger(__name__)
@@ -98,13 +98,13 @@ def _massive_get(path: str, params: dict = None):
 
 
 def _cached(key: str, ttl: int, fetch):
-    hit = db.cache_get(key, ttl)
+    hit = cache.cache_get(key, ttl)
     if hit is not None:
         return json.loads(hit)
     data = fetch()
     if data is None:
         return None
-    db.cache_set(key, json.dumps(data), ttl)
+    cache.cache_set(key, json.dumps(data), ttl)
     return data
 
 
@@ -181,4 +181,4 @@ _KIND_TTL = {"price": 86400, "splits": 7 * 86400, "float": 7 * 86400, "short": 7
 
 def is_cached(kind: str, ticker: str) -> bool:
     """True when the slot can be filled without spending a rate-limited call."""
-    return db.cache_get(f"massive:{kind}:{ticker}", _KIND_TTL[kind]) is not None
+    return cache.cache_get(f"massive:{kind}:{ticker}", _KIND_TTL[kind]) is not None

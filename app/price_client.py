@@ -3,7 +3,7 @@ import logging
 
 import httpx
 
-from . import db
+from . import cache
 from .config import FINNHUB_API_KEY, TWELVEDATA_API_KEY
 
 log = logging.getLogger(__name__)
@@ -135,11 +135,11 @@ CACHE_TTL = 86400
 
 
 def _price_cache(ticker: str):
-    hit = db.cache_get(f"price:{ticker}", CACHE_TTL)
+    hit = cache.cache_get(f"price:{ticker}", CACHE_TTL)
     if hit is not None:
         return json.loads(hit)
     return None
 
 
 def _set_price_cache(ticker: str, data: dict):
-    db.cache_set(f"price:{ticker}", json.dumps(data), CACHE_TTL)
+    cache.cache_set(f"price:{ticker}", json.dumps(data), CACHE_TTL)

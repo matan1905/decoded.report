@@ -19,7 +19,7 @@ from datetime import date, timedelta
 
 import httpx
 
-from . import db
+from . import cache
 from .config import SEC_USER_AGENT
 
 log = logging.getLogger(__name__)
@@ -66,7 +66,7 @@ def _client(timeout: float = 20.0) -> httpx.Client:
 
 
 def _cached_json(key: str, ttl: int, fetch):
-    hit = db.cache_get(key, ttl)
+    hit = cache.cache_get(key, ttl)
     if hit is not None:
         import json
         return json.loads(hit)
@@ -78,7 +78,7 @@ def _cached_json(key: str, ttl: int, fetch):
     if data is None:
         return None
     import json
-    db.cache_set(key, json.dumps(data), ttl)
+    cache.cache_set(key, json.dumps(data), ttl)
     return data
 
 
@@ -449,7 +449,7 @@ def wayback_history(domain: str) -> dict:
     # cache only briefly so the next pass retries the archive
     import json as _json
     for ttl in (30 * 86400, 6 * 3600):
-        hit = db.cache_get(f"{key}:{ttl}", ttl)
+        hit = cache.cache_get(f"{key}:{ttl}", ttl)
         if hit is not None:
             return _json.loads(hit)
 
@@ -510,7 +510,7 @@ def wayback_history(domain: str) -> dict:
         "partial": bool(not first_iso or not last_iso),
     }
     ttl = 30 * 86400 if not out["partial"] else 6 * 3600
-    db.cache_set(f"{key}:{ttl}", _json.dumps(out), ttl)
+    cache.cache_set(f"{key}:{ttl}", _json.dumps(out), ttl)
     return out
 
 
@@ -732,7 +732,7 @@ def whois_history(domain: str) -> dict:
     # full results cache for a month; partial ones or empty archive reads
     # cache only briefly so the next pass retries
     for ttl in (30 * 86400, 6 * 3600):
-        hit = db.cache_get(f"{key}:{ttl}", ttl)
+        hit = cache.cache_get(f"{key}:{ttl}", ttl)
         if hit is not None:
             return _json.loads(hit)
 
@@ -818,7 +818,7 @@ def whois_history(domain: str) -> dict:
             partial = (out.get("partial")
                        or out.get("status") == "no_archived_whois")
             ttl = 6 * 3600 if partial else 30 * 86400
-            db.cache_set(f"{key}:{ttl}", _json.dumps(out), ttl)
+            cache.cache_set(f"{key}:{ttl}", _json.dumps(out), ttl)
         return out
 
     # short-lived wrapper so concurrent page loads share one archive pass

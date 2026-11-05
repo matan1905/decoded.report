@@ -26,8 +26,7 @@ services:
     # No host port mapping: Coolify's proxy reaches the container directly
     # through the "Port Exposes" value (8000). Publishing a host port would
     # collide with whatever else runs on the box.
-    volumes:
-      - ./data:/app/data
+    # No volume: the app keeps its cache in memory and persists nothing.
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=5)"]
       interval: 30s

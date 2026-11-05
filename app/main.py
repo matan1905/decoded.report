@@ -13,8 +13,8 @@ from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse,
 from fastapi.templating import Jinja2Templates
 
 from . import ads
+from . import cache
 from . import content
-from . import db
 from .config import APP_NAME, APP_VERSION, BASE_DIR, SEC_USER_AGENT
 from .config import ADMIN_PASSWORD, ADMIN_USERNAME, DEFAULT_PUBLIC_URL, BASE_URL as CONFIG_BASE_URL
 from .delta_engine import DeltaEngine, _fmt_compact
@@ -75,46 +75,20 @@ ENGINE_CACHE_TTL = 6 * 3600  # 6h
 
 @app.on_event("startup")
 def _startup():
-    # Nothing here may block the ASGI lifespan. A locked, slow or missing
-    # database must degrade individual queries, never stop the process from
-    # finishing startup and binding its port. All DB work runs off-thread.
+    # Nothing here may block the ASGI lifespan. There is no database now, and
+    # network warmup runs off-thread, so startup always binds the port.
     log.info("started %s v%s, price mode: %s", APP_NAME, APP_VERSION, _price_state() or "none")
-    threading.Thread(target=_boot_db, daemon=True).start()
     threading.Thread(target=_warmup, daemon=True).start()
 
 
-def _boot_db():
-    """Schema init and cache sweep, off the startup path. Bounded and
-    non-fatal: a busy database delays these, it does not hang the server."""
-    for step, fn in (("schema init", db.init_db), ("cache sweep", db.cache_clear_expired)):
-        try:
-            fn()
-        except Exception as exc:
-            log.warning("startup step '%s' failed (continuing): %s", step, exc)
-
-
 def _warmup():
-    """Background: pay the one-time global costs (OFAC list) and pre-warm
-    whatever tickers real visitors actually demanded recently, so returning
-    traffic never pays cold-start. No hardcoded examples."""
+    """Background: pay the one-time global cost (the OFAC list) so the first
+    sanctions screen is warm. Ticker pre-warm went away with the database."""
     try:
         osint.ofac_screen("Warmup Probe Inc")
         log.info("warmup: sanctions list loaded")
     except Exception as exc:
         log.warning("warmup ofac failed: %s", exc)
-    demanded = [r["ticker"] for r in db.recent_searched(limit=6, days=45)]
-    if not demanded:
-        log.info("warmup: no demand history yet, skipping ticker pre-warm")
-        return
-    for t in demanded:
-        try:
-            resolved = sec.resolve(t)
-            if not resolved:
-                continue
-            _snapshot_data(t, resolved["cik"], resolved["name"])
-        except Exception as exc:
-            log.warning("warmup %s failed: %s", t, exc)
-    log.info("warmup: %d demanded ticker(s) ready", len(demanded))
 
 
 def _price_state() -> str:
@@ -189,7 +163,7 @@ def landing(request: Request):
     utm = _utm(request)
     if t:
         return _snapshot_tpl(request, t)
-    hot = [r["ticker"] for r in db.recent_searched(limit=8)]
+    hot = []
     return templates.TemplateResponse(
         request, "landing.html",
         {"app_name": APP_NAME, "app_version": APP_VERSION, "hot": hot,
@@ -202,10 +176,6 @@ async def search_submit(ticker: str = Form(...), request: Request = None):
     lookup = _sanitize_ticker(ticker)
     if not lookup:
         return RedirectResponse(url="/", status_code=303)
-    found = int(bool(sec.resolve(lookup)))
-    utm = _utm(request)
-    db.log_search(lookup, found=found, utm=utm or "search")
-    db.log_event("search", ticker=lookup, utm=utm or "search")
     return RedirectResponse(url=f"/{lookup}?utm_source=search", status_code=303)
 
 
@@ -322,11 +292,7 @@ def _snapshot_data(t: str, cik: int, name: str, deep: bool = True) -> dict:
             chart = insider_chart(insider_flows.get("rows") or [])
         except Exception as exc:
             log.warning("insider chart failed for %s: %s", t, exc)
-    try:
-        related = db.related_tickers(t)
-    except Exception as exc:
-        log.warning("related tickers failed for %s: %s", t, exc)
-        related = []
+    related = []
 
     # unified page: delta + verdict + chart histories all in one place.
     # One delta computation feeds runway extraction here and section 04;
@@ -388,19 +354,17 @@ def _snapshot_data(t: str, cik: int, name: str, deep: bool = True) -> dict:
 
 
 def _hot_tickers(limit: int = 4) -> list:
-    return [r["ticker"] for r in db.recent_searched(limit=limit)]
+    return []
 
 
 def _snapshot_tpl(request: Request, ticker: str):
     t = _sanitize_ticker(ticker)
-    utm = _utm(request)
     if not t:
         return templates.TemplateResponse(
             request, "landing.html", {"app_name": APP_NAME, "app_version": APP_VERSION},
         )
     resolved = sec.resolve(t)
     if not resolved:
-        db.log_event("notfound", ticker=t, utm=utm)
         return templates.TemplateResponse(
             request, "notfound.html", {"app_name": APP_NAME, "app_version": APP_VERSION, "ticker": t,
                                        "page_url": _base_url(request),
@@ -408,7 +372,6 @@ def _snapshot_tpl(request: Request, ticker: str):
             status_code=404,
         )
     cik, name = resolved["cik"], resolved["name"]
-    db.log_event("page_view", ticker=t, utm=utm)
 
     data = _snapshot_data(t, cik, name)
     data["request"] = request
@@ -617,8 +580,7 @@ def admin_subs(request: Request, _admin: str = Depends(require_admin)):
         request, "admin.html",
         {
             "app_name": APP_NAME, "app_version": APP_VERSION,
-            "stats": db.demand_stats(7), "hot": db.recent_searched(12, days=30),
-            "events": db.recent_events(40, days=30),
+            "cache": cache.stats(),
         },
     )
 
@@ -928,8 +890,7 @@ def sitemap_xml(request: Request):
     base = _origin(request)
     urls = ["", "guides", "methodology", "about", "watchlist", "bag-vs", "privacy", "terms"]
     urls.extend(f"guides/{g['slug']}" for g in content.GUIDES)
-    hot = [r["ticker"] for r in db.recent_searched(limit=50, days=90)]
-    urls.extend(f"{t}" for t in hot)
+
     body = (
         '<?xml version="1.0" encoding="UTF-8"?>\n'
         '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
@@ -962,7 +923,6 @@ def _watchlist_tpl(request: Request, raw: str):
             wanted.append(st)
     results = []
     if wanted:
-        db.log_event("watchlist", ticker=",".join(wanted), utm=_utm(request))
         with ThreadPoolExecutor(max_workers=4) as pool:
             results = list(pool.map(_ticker_summary, wanted))
         results.sort(key=lambda r: (r.get("error", False), -(r.get("score", 0))))
@@ -1009,13 +969,7 @@ def _bag_vs_tpl(request: Request, raw_a: str, raw_b: str):
     side_a = side_b = []
     avg_a = avg_b = None
     winner = None
-    if a:
-        db.log_event("watchlist", ticker=",".join(a), utm=_utm(request))
-    if b:
-        db.log_event("watchlist", ticker=",".join(b), utm=_utm(request))
     if queried:
-        db.log_event("bag_vs", ticker="|".join([",".join(a), ",".join(b)]),
-                     utm=_utm(request))
         side_a, side_b, avg_a, avg_b, winner = _bag_vs_rows(a, b)
     verdict_line = None
     if winner == "tie":
@@ -1055,11 +1009,11 @@ def _cached_delta(t: str, cik: int, deep: bool = True) -> dict:
     # deep includes the breaking-8-K text fetch; shallow skips it so a cold
     # ticker page renders fast. Separate cache keys, same TTL.
     key = f"delta:{t}" if deep else f"deltacore:{t}"
-    hit = db.cache_get(key, ENGINE_CACHE_TTL)
+    hit = cache.cache_get(key, ENGINE_CACHE_TTL)
     if hit is not None:
         return json.loads(hit)
     out = delta_engine.compute(t, cik, deep=deep)
-    db.cache_set(key, json.dumps(out, default=str), ENGINE_CACHE_TTL)
+    cache.cache_set(key, json.dumps(out, default=str), ENGINE_CACHE_TTL)
     return out
 
 
@@ -1102,14 +1056,14 @@ def _risk_full(t: str, cik: int):
 
 def _cached_verdict(t: str, cik: int, price: dict, going_concern: bool = False) -> dict:
     key = f"verdict:{t}"
-    hit = db.cache_get(key, 86400)
+    hit = cache.cache_get(key, 86400)
     if hit is not None:
         return json.loads(hit)
     delta = _cached_delta(t, cik)
     inputs = build_inputs(delta, price)
     inputs["going_concern"] = going_concern
     out = verdict_engine.compute(inputs)
-    db.cache_set(key, json.dumps(out, default=str), 86400)
+    cache.cache_set(key, json.dumps(out, default=str), 86400)
     return out
 
 

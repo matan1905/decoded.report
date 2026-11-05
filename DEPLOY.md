@@ -10,10 +10,9 @@ The Compose file runs a single service:
 
 - `web`: FastAPI application on port 8000
 
-It owns `./data`, which keeps the SQLite database and image cache across
-container restarts and redeploys. Do not use an ephemeral volume. SQLite runs
-in WAL mode with a 30s busy timeout, so the app tolerates overlapping writes
-without "database is locked" errors.
+The app keeps no database and no persistent volume. Its cache is in memory and
+resets on restart, so a deploy starts cold and warms back up from the SEC. There
+is no SQLite file, no lock, and nothing to back up.
 
 ## Required environment variables
 
@@ -66,8 +65,9 @@ never drifts from the live units.
 3. Confirm the market-data websocket fills slots after the page loads.
 4. Open `/admin/subs` and confirm the browser prompts for Basic Auth.
 5. Confirm `/privacy`, `/terms`, and `/ads.txt` are reachable.
-6. Visit a report and a Bag Check, then verify Recent Events in the admin console.
-7. With ad slots configured, confirm units render below the hero, mid-report,
-   in the footer, and (on wide screens) in the rail.
+6. Visit a report and a Bag Check, then open the owner console and confirm the
+   in-memory cache counters are populated.
+7. Confirm the Monetag MultiTag is present in the page head on the live site.
 
-The local SQLite database is intentionally not included in the image or Git.
+There is no local database and no persisted state. The cache lives in memory
+and is rebuilt after each restart.

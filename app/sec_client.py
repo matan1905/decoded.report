@@ -9,7 +9,7 @@ from datetime import date, timedelta
 
 import httpx
 
-from . import db
+from . import cache
 from .config import SEC_USER_AGENT
 
 log = logging.getLogger(__name__)
@@ -162,16 +162,16 @@ class SecClient:
         return resp.json()
 
     def _cached(self, key: str, url: str, ttl: int = 86400) -> dict:
-        hit = db.cache_get(key, ttl)
+        hit = cache.cache_get(key, ttl)
         if hit is not None:
             return json.loads(hit)
         data = self._get_json(url)
-        db.cache_set(key, json.dumps(data), ttl)
+        cache.cache_set(key, json.dumps(data), ttl)
         return data
 
     def get_text(self, url: str, cache_key: str = None, ttl: int = 86400) -> str:
         if cache_key:
-            hit = db.cache_get(cache_key, ttl)
+            hit = cache.cache_get(cache_key, ttl)
             if hit is not None:
                 return hit
         # dedupe concurrent fetches of the same document (the flag scanner,
@@ -180,7 +180,7 @@ class SecClient:
         lock = self._fetch_lock(cache_key or url)
         with lock:
             if cache_key:
-                hit = db.cache_get(cache_key, ttl)
+                hit = cache.cache_get(cache_key, ttl)
                 if hit is not None:
                     return hit
             time.sleep(SLEEP)
@@ -188,7 +188,7 @@ class SecClient:
             resp.raise_for_status()
             text = resp.text
             if cache_key:
-                db.cache_set(cache_key, text, ttl)
+                cache.cache_set(cache_key, text, ttl)
             return text
 
     def filing_html(self, cik: int, accession: str) -> str:
@@ -472,7 +472,7 @@ class SecClient:
 
     def _fetch_form4_xml(self, cik: int, accession: str):
         key = f"form4:{cik}:{accession}"
-        hit = db.cache_get(key, 30 * 86400)
+        hit = cache.cache_get(key, 30 * 86400)
         if hit is not None:
             return hit
         pdoc = self.primary_doc_for(cik, accession)
@@ -481,7 +481,7 @@ class SecClient:
         time.sleep(SLEEP)
         resp = self._client.get(url)
         resp.raise_for_status()
-        db.cache_set(key, resp.text, 30 * 86400)
+        cache.cache_set(key, resp.text, 30 * 86400)
         return resp.text
 
     # phrases in Form 4 footnotes that mark a trade as pre-scheduled under a
@@ -665,11 +665,11 @@ class SecClient:
     def scan_flags(self, cik: int, refresh: bool = False):
         key = f"flags:v3:{_pad10(cik)}"
         if not refresh:
-            cached = db.cache_get(key, 86400)
+            cached = cache.cache_get(key, 86400)
             if cached is not None:
                 return json.loads(cached)
         out = self._scan_flags_uncached(cik)
-        db.cache_set(key, json.dumps(out), 86400)
+        cache.cache_set(key, json.dumps(out), 86400)
         return out
 
     def _scan_flags_uncached(self, cik: int):

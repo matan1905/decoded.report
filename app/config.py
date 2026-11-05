@@ -5,7 +5,6 @@ from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent
 PRODUCT_DIR = BASE_DIR.parent
-DATA_DIR = PRODUCT_DIR / "data"
 
 load_dotenv(PRODUCT_DIR / ".env")
 
@@ -50,10 +49,6 @@ ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "").strip()
 # local run never links off-site.
 BASE_URL = os.getenv("BASE_URL", "").strip().rstrip("/")
 DEFAULT_PUBLIC_URL = "https://decoded.report"
-
-
-DATA_DIR.mkdir(exist_ok=True)
-DB_PATH = DATA_DIR / "decode.db"
 
 
 def has_twelve() -> bool:

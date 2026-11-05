@@ -3,7 +3,6 @@ import re
 from datetime import date, timedelta
 from html import unescape
 
-from . import db
 from .sec_client import SecClient
 
 log = logging.getLogger(__name__)

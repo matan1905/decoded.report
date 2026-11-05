@@ -3,15 +3,21 @@
 {% block content %}
 
 <section class="sec">
-  <div class="sechead"><span class="no">Σ</span><h2>Demand · Last 7 Days</h2><span class="rule"></span></div>
+  <div class="sechead"><span class="no">§</span><h2>Owner Console</h2><span class="rule"></span>
+    <span class="aux">V{{ app_version }}</span></div>
+  <p class="sub">
+    This deployment keeps no database and persists nothing. The cache below is
+    process-local and resets when the container restarts. Request analytics and
+    the old demand tables were removed with the database.
+  </p>
+</section>
+
+<section class="sec">
+  <div class="sechead"><span class="no">Σ</span><h2>In-Memory Cache</h2><span class="rule"></span></div>
   <div class="stats">
-    <div class="stat"><div class="n">{{ stats.page_view }}</div><div class="t">REPORT VIEWS</div></div>
-    <div class="stat"><div class="n">{{ stats.searches }}</div><div class="t">SEARCHES</div></div>
-    <div class="stat"><div class="n">{{ stats.watchlist }}</div><div class="t">BAG CHECK RUNS</div></div>
-    <div class="stat"><div class="n">{{ stats.leads_total }}</div><div class="t">LEADS TOTAL</div></div>
-  </div>
-  <div class="examples" style="margin-top:14px;">HOT TICKERS (30D):
-    {% for r in hot %}<a class="pill" href="/{{ r.ticker }}">{{ r.ticker }} ×{{ r.c }}</a>{% endfor %}
+    <div class="stat"><div class="n">{{ cache.entries }}</div><div class="t">ENTRIES</div></div>
+    <div class="stat"><div class="n">{{ cache.live }}</div><div class="t">LIVE (NOT EXPIRED)</div></div>
+    <div class="stat"><div class="n">{{ (cache.bytes / 1048576) | round(1) }}</div><div class="t">MEGABYTES</div></div>
   </div>
 </section>
 
@@ -20,32 +26,11 @@
     <span class="aux">{{ ("ADSENSE " + adsense_client) if adsense_client else ("ENABLED (CUSTOM)" if ads_enabled else "NOT CONFIGURED") }}</span>
   </div>
   {% if ads_enabled %}
-  <p class="sub">Ad slots are live. Placements render from <code>ADSENSE_CLIENT</code> + <code>AD_SLOT_*</code>, or any <code>AD_HTML_*</code> override. <code>/ads.txt</code> is generated from the client ID.</p>
+  <p class="sub">Ad slots are configured. Auto or manual units render from <code>ADSENSE_CLIENT</code> plus <code>AD_SLOT_*</code>, or any <code>AD_HTML_*</code> override.</p>
   {% else %}
-  <p class="note">No ad network configured. Set <code>ADSENSE_CLIENT</code> (with <code>AD_SLOT_TOP/MID/FOOTER/SIDEBAR/ANCHOR</code>) in .env, or drop raw markup into <code>AD_HTML_*</code>. Slots render empty until then.</p>
+  <p class="note">No ad network configured in this environment.</p>
   {% endif %}
 </section>
 
-<section class="sec">
-  <div class="sechead"><span class="no">!</span><h2>Recent Events · 30 Days</h2><span class="rule"></span>
-    <span class="aux">PAGE VIEWS · SEARCHES · BAGS</span></div>
-  {% if events %}
-  <div class="filing" style="font-size:11px;color:var(--dim);border-bottom:1px solid var(--line2);">
-    <span class="form" style="min-width:130px;">EVENT</span>
-    <span class="dt" style="min-width:150px;">TICKER / PAYLOAD</span>
-    <span class="dt">WHEN</span>
-    <span style="flex:1;">SOURCE</span>
-  </div>
-  {% for e in events %}
-  <div class="filing">
-    <span class="form" style="min-width:130px;">{{ e.kind }}</span>
-    <span class="dt" style="min-width:150px;word-break:break-all;">{{ e.ticker or "-" }}</span>
-    <span class="dt">{{ e.created_at | timestamp_ago }}</span>
-    <span style="flex:1;" class="muted">{{ e.utm_source or "direct" }}{% if e.captured %} · captured{% endif %}</span>
-  </div>
-  {% endfor %}
-  {% else %}<p class="note">No events yet. Visit a report or run a search.</p>{% endif %}
-</section>
-
-<p class="cite">SOURCE: SQLITE EVENTS + SEARCHES · V{{ app_version }}</p>
+<p class="cite">NO DATABASE · NO PERSISTED STATE · CACHE IS IN MEMORY ONLY</p>
 {% endblock %}
